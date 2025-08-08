@@ -1,0 +1,26 @@
+Package: airquality.methods
+Title: Methods for analysing air quality in the Canton of Zurich
+Version: 0.2.9
+Authors@R: 
+    person("Jörg", "Sintermann", , "luft@bd.zh.ch", role = c("aut", "cre"),
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+Description: Functions for analysis R-project "airquality" concerning a systematic and comprehensive air quality data compilation, analysis and visualisation for the Canton of Zurich, based on public data.
+License: GPL (>= 3)
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Imports: 
+    dplyr (>= 1.1.4),
+    httr2 (>= 1.2.1),
+    lubridate (>= 1.9.4),
+    purrr (>= 1.1.0),
+    pxR (>= 0.42.8),
+    readr (>= 2.1.5),
+    rjson (>= 0.2.23),
+    rlang (>= 1.1.6),
+    sf (>= 1.0.21),
+    stars (>= 0.6.8),
+    stringr (>= 1.5.1),
+    tibble (>= 3.3.0),
+    tidyr (>= 1.3.1),
+    withr (>= 3.0.2)

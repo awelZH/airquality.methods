@@ -19,12 +19,16 @@ aggregate_map <- function(map) {
 #'
 #' @param data
 #' @param subsector_new
+#' @param cols
 #'
 #' @description
 #' Merges subsectors with small emissions into one common (or pre-defined) category and sums up emissions accordingly.
 #'
 #' @export
-aggregate_emmissions <- function(data, subsector_new = NULL){
+aggregate_emmissions <- function(data, subsector_new = NULL,
+                                 cols = c("Dienstleistungen" = "Gold", "Haushalte" =  "Green", "Industrie" = "Blue",
+                                          "Land- und Forstw." = "Purple", "Verkehr" = "Gray", "natürl. Emissionen" = "natural")
+){
 
   if (is.null(subsector_new)) {
     groups <- groups_emission_subsector(data)
@@ -44,15 +48,32 @@ aggregate_emmissions <- function(data, subsector_new = NULL){
   group_vars <- c("year", "pollutant", "unit", "sector", "subsector_new")
   data <-
     data |>
-    aggregate_groups(y = "emission", groups = group_vars, nmin = 1) |>
+    aggregate_groups(y = "emission", groups = group_vars, nmin = 1) |>  #! test possibility here: sum of emissions needs to match that of original data_emikat
     dplyr::rename(emission = sum) |>
     dplyr::select(tidyr::all_of(c(group_vars,"emission"))) |>
     dplyr::mutate(
       metric = "Jahresmenge",
       source = "Ostluft & BAFU"
     ) |>
-    dplyr::filter(!is.na(emission) & emission > 0) |>  #! test possibility here: sum of emissions needs to match that of original data_emikat
-    dplyr::select(year, pollutant, metric, unit, sector, subsector_new, emission, source)
+    dplyr::select(year, pollutant, metric, unit, sector, subsector_new, emission, source) |>
+    dplyr::filter(!is.na(emission) & emission > 0)
+
+  data <-
+    data |>
+    dplyr::group_by(sector, subsector_new) |>
+    dplyr::summarise(emission = sum(emission, na.rm = TRUE)) |>
+    dplyr::ungroup() |>
+    dplyr::arrange(sector, dplyr::desc(emission)) |>
+    dplyr::distinct(sector, subsector_new) |>
+    dplyr::mutate(
+      rootcol = dplyr::recode(sector, !!!cols),
+      order = 1:dplyr::n()
+    ) |>
+    dplyr::group_by(sector) |>
+    dplyr::mutate(col = pal_emissions(dplyr::n(), unique(rootcol))) |>
+    dplyr::ungroup() |>
+    dplyr::right_join(data, by = c("sector", "subsector_new")) |>
+    dplyr::arrange(year, pollutant, sector, dplyr::desc(emission))
 
   return(data)
 }

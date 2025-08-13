@@ -7,8 +7,6 @@
 filter_ressources(ressources, internal_id)
 }
 \arguments{
-\item{ressources}{}
-
 \item{internal_id}{}
 }
 \description{

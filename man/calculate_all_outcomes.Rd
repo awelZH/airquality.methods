@@ -7,8 +7,6 @@
 calculate_all_outcomes(data, conc_threshold = "lower_conc_threshold")
 }
 \arguments{
-\item{data}{}
-
 \item{conc_threshold}{}
 }
 \description{

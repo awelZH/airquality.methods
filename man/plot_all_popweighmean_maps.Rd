@@ -7,10 +7,6 @@
 plot_all_popweighmean_maps(parameter, data, data_canton)
 }
 \arguments{
-\item{parameter}{}
-
-\item{data}{}
-
 \item{data_canton}{}
 }
 \description{

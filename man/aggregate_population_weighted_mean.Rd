@@ -10,8 +10,6 @@ aggregate_population_weighted_mean(
 )
 }
 \arguments{
-\item{data}{}
-
 \item{groups}{}
 }
 \description{

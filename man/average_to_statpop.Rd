@@ -7,8 +7,6 @@
 average_to_statpop(x, y)
 }
 \arguments{
-\item{x}{}
-
 \item{y}{}
 }
 \description{

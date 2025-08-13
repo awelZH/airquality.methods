@@ -7,8 +7,6 @@
 filter_rsd(data, filters)
 }
 \arguments{
-\item{data}{}
-
 \item{filters}{}
 }
 \description{

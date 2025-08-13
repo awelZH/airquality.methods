@@ -14,16 +14,6 @@ ggplot_emissions(
 )
 }
 \arguments{
-\item{data}{}
-
-\item{cols}{}
-
-\item{relative}{}
-
-\item{pos}{}
-
-\item{width}{}
-
 \item{theme}{}
 }
 \description{

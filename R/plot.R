@@ -204,34 +204,36 @@ ggplot_emissions <- function(data, cols, relative = FALSE, pos = "stack", width 
     sub <- openair::quickText(paste0(pollutant, ", ", metric, " nach Quellgruppen (", unit, ")"))
   }
 
-  data <-
+  data <- dplyr::mutate(data, subsector_new2 = paste0(sector, " / ", subsector_new))
+  lvls <-
     data |>
-    dplyr::mutate(
-      subsector_new2 = paste0(sector, " / ", subsector_new)
-    )
+    dplyr::distinct(subsector_new2, order) |>
+    dplyr::arrange(order) |>
+    dplyr::pull(subsector_new2)
+  data <- dplyr::mutate(data, subsector_new2 = factor(subsector_new2, levels = !!lvls))
 
-  order <-
-    data |>
-    dplyr::group_by(sector, subsector_new2) |>
-    dplyr::summarise(emission = mean(emission)) |>
-    dplyr::ungroup() |>
-    dplyr::arrange(sector, emission) |>
-    dplyr::ungroup()
-
-  data <-
-    data |>
-    dplyr::mutate(subsector_new2 = factor(subsector_new2, levels = order$subsector_new2)) |>
-    dplyr::mutate(rootcol = dplyr::recode(sector, !!!cols)) |>
-    dplyr::arrange(sector, dplyr::desc(emission))
-
-  cols <-
-    data |>
-    dplyr::distinct(subsector_new, rootcol) |>
-    dplyr::group_by(rootcol) |>
-    dplyr::mutate(col = pal_emissions(n = length(.data$rootcol), name = unique(.data$rootcol))) |>
-    dplyr::ungroup()
-
-  data <- dplyr::left_join(data, cols, by = c("subsector_new", "rootcol"))
+  # order <-
+  #   data |>
+  #   dplyr::group_by(sector, subsector_new2) |>
+  #   dplyr::summarise(emission = mean(emission)) |>
+  #   dplyr::ungroup() |>
+  #   dplyr::arrange(sector, emission) |>
+  #   dplyr::ungroup()
+  #
+  # data <-
+  #   data |>
+  #   dplyr::mutate(subsector_new2 = factor(subsector_new2, levels = order$subsector_new2)) |>
+  #   dplyr::mutate(rootcol = dplyr::recode(sector, !!!cols)) |>
+  #   dplyr::arrange(sector, dplyr::desc(emission))
+  #
+  # cols <-
+  #   data |>
+  #   dplyr::distinct(subsector_new, rootcol) |>
+  #   dplyr::group_by(rootcol) |>
+  #   dplyr::mutate(col = pal_emissions(n = length(.data$rootcol), name = unique(.data$rootcol))) |>
+  #   dplyr::ungroup()
+  #
+  # data <- dplyr::left_join(data, cols, by = c("subsector_new", "rootcol"))
 
   plot <-
     data |>

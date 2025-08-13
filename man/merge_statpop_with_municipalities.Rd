@@ -7,8 +7,6 @@
 merge_statpop_with_municipalities(data_raster, data_municip)
 }
 \arguments{
-\item{data_raster}{}
-
 \item{data_municip}{}
 }
 \description{

@@ -7,12 +7,6 @@
 average_to_grid(data, grid, method = "average", na_val = -999)
 }
 \arguments{
-\item{data}{}
-
-\item{grid}{}
-
-\item{method}{}
-
 \item{na_val}{}
 }
 \description{

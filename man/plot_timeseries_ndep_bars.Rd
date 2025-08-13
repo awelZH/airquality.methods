@@ -14,16 +14,6 @@ plot_timeseries_ndep_bars(
 )
 }
 \arguments{
-\item{data}{}
-
-\item{xlim}{}
-
-\item{xbreaks}{}
-
-\item{linewidth}{}
-
-\item{color}{}
-
 \item{title}{}
 }
 \description{

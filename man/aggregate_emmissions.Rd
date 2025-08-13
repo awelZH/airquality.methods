@@ -4,11 +4,16 @@
 \alias{aggregate_emmissions}
 \title{Aggregates emission budget data}
 \usage{
-aggregate_emmissions(data)
+aggregate_emmissions(
+  data,
+  subsector_new = NULL,
+  cols = c(Dienstleistungen = "Gold", Haushalte = "Green", Industrie = "Blue",
+    `Land- und Forstw.` = "Purple", Verkehr = "Gray", `natürl. Emissionen` = "natural")
+)
 }
 \arguments{
-\item{data}{}
+\item{cols}{}
 }
 \description{
-Merges subsectors with small emissions into one common category and sums up emissions accordingly.
+Merges subsectors with small emissions into one common (or pre-defined) category and sums up emissions accordingly.
 }

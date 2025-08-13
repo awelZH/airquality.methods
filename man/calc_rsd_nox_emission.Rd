@@ -7,14 +7,6 @@
 calc_rsd_nox_emission(NO, p, CO2, CO, HC)
 }
 \arguments{
-\item{NO}{}
-
-\item{p}{}
-
-\item{CO2}{}
-
-\item{CO}{}
-
 \item{HC}{}
 }
 \description{

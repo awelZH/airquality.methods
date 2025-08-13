@@ -7,8 +7,6 @@
 merge_restructure_rsd(data, meta)
 }
 \arguments{
-\item{data}{}
-
 \item{meta}{}
 }
 \description{

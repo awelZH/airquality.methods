@@ -7,10 +7,6 @@
 plotlist_to_tibble(plotlist, type, source)
 }
 \arguments{
-\item{plotlist}{}
-
-\item{type}{}
-
 \item{source}{}
 }
 \description{

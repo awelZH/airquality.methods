@@ -15,25 +15,7 @@ ggplot_timeseries_bars(
 )
 }
 \arguments{
-\item{data}{}
-
-\item{mapping}{}
-
-\item{ylims}{}
-
-\item{ybreaks}{}
-
-\item{titlelab}{}
-
-\item{captionlab}{}
-
 \item{theme}{}
-
-\item{pointshape}{}
-
-\item{pointsize}{}
-
-\item{threshold}{}
 }
 \description{
 Plot bar timeseries for yearly population-weighted mean concentration or health-outcome data using ggplot2

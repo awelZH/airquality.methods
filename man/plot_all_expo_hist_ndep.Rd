@@ -7,8 +7,6 @@
 plot_all_expo_hist_ndep(data, threshold_ndep)
 }
 \arguments{
-\item{data}{}
-
 \item{threshold_ndep}{}
 }
 \description{

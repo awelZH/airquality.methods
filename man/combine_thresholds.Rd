@@ -7,8 +7,6 @@
 combine_thresholds(data, threshold_values)
 }
 \arguments{
-\item{data}{}
-
 \item{threshold_values}{}
 }
 \description{

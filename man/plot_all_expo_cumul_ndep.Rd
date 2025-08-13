@@ -7,8 +7,6 @@
 plot_all_expo_cumul_ndep(data, threshold_ndep)
 }
 \arguments{
-\item{data}{}
-
 \item{threshold_ndep}{}
 }
 \description{

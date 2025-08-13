@@ -7,12 +7,6 @@
 write_local_csv(data, file, delim = ";", na = "NA", append = FALSE)
 }
 \arguments{
-\item{data}{}
-
-\item{file}{}
-
-\item{delim}{}
-
 \item{na}{}
 }
 \description{

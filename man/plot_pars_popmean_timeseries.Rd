@@ -7,8 +7,6 @@
 plot_pars_popmean_timeseries(data, parameters)
 }
 \arguments{
-\item{data}{}
-
 \item{parameters}{}
 }
 \description{

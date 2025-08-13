@@ -7,10 +7,6 @@
 plot_pars_prelim_deaths_timeseries(data, parameters, relative = FALSE)
 }
 \arguments{
-\item{data}{}
-
-\item{parameters}{}
-
 \item{relative}{}
 }
 \description{

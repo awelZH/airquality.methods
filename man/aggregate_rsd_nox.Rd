@@ -11,10 +11,6 @@ aggregate_rsd_nox(
 )
 }
 \arguments{
-\item{data}{}
-
-\item{rsd_auxiliary}{}
-
 \item{groups}{}
 }
 \description{

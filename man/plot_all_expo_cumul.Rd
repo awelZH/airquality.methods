@@ -7,8 +7,6 @@
 plot_all_expo_cumul(parameter, data)
 }
 \arguments{
-\item{parameter}{}
-
 \item{data}{}
 }
 \description{

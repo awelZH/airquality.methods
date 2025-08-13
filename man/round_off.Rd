@@ -7,8 +7,6 @@
 round_off(x, digits = 0)
 }
 \arguments{
-\item{x}{}
-
 \item{digits}{}
 }
 \description{

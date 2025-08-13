@@ -24,7 +24,7 @@ aggregate_map <- function(map) {
 #' Merges subsectors with small emissions into one common (or pre-defined) category and sums up emissions accordingly.
 #'
 #' @export
-aggregate_emmissions2 <- function(data, subsector_new = NULL){
+aggregate_emmissions <- function(data, subsector_new = NULL){
 
   if (is.null(subsector_new)) {
     groups <- groups_emission_subsector(data)

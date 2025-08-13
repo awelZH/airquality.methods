@@ -190,7 +190,7 @@ ggplot_expo_cumulative <- function(data, x, y, linewidth = 1, xlims = c(0,NA), x
 #' @param theme
 #'
 #' @keywords internal
-ggplot_emissions <- function(data, cols, relative = FALSE, pos = "stack", width = 0.8, theme = ggplot2::theme_minimal()) {
+ggplot_emissions <- function(data, relative = FALSE, pos = "stack", width = 0.8, theme = ggplot2::theme_minimal()) {
 
   pollutant <- unique(as.character(data$pollutant))
   metric <- unique(as.character(data$metric))

@@ -56,8 +56,8 @@ ggplot_timeseries <- function(data, mapping = ggplot2::aes(x = year, y = concent
 #' @param theme
 #'
 #' @keywords internal
-ggplot_timeseries_lines <- function(data, mapping = ggplot2::aes(x = year, y = population_weighted_mean, fill = scenario), ylims = c(0,NA), ybreaks = waiver(), titlelab = NULL, captionlab = NULL,
-                                   theme = ggplot2::theme_minimal()) {
+ggplot_timeseries_lines <- function(data, mapping = ggplot2::aes(x = year, y = population_weighted_mean), ylims = c(0,NA), ybreaks = waiver(), titlelab = NULL, captionlab = NULL,
+                                    theme = ggplot2::theme_minimal()) {
 
   plot <-
     ggplot2::ggplot(data, mapping = mapping) +
@@ -535,32 +535,64 @@ plot_all_expo_cumul <- function(parameter, data, sub = "im Kanton Zürich") {
 #'
 #' @param data
 #' @param parameters
+#' @param version
+#' @param id_subareas
 #'
 #' @keywords internal
-plot_pars_popmean_timeseries <- function(data, parameters) {
+plot_pars_popmean_timeseries <- function(data, parameters, version = "overall", id_subareas = NULL) {
 
-  data <-
-    data |>
-    dplyr::mutate(delta_base = pmin(population_weighted_mean - population_weighted_mean_base, 0)) |>
-    dplyr::select(year, pollutant, parameter, delta_base, population_weighted_mean, base_year) |>
-    tidyr::gather(scenario, population_weighted_mean, -year, -pollutant, -parameter, -base_year) |>
-    dplyr::mutate(scenario = dplyr::recode(scenario, population_weighted_mean = "tatsächliche Belastung", delta_base = paste0("vermindert vs. ",na.omit(unique(.data$base_year)))))
+  if (version == "overall") {
 
-  plots <-
-    lapply(setNames(parameters, parameters), function(parameter) {
+    data <-
+      data |>
+      dplyr::mutate(delta_base = pmin(population_weighted_mean - population_weighted_mean_base, 0)) |>
+      dplyr::select(year, pollutant, parameter, delta_base, population_weighted_mean, base_year) |>
+      tidyr::gather(scenario, population_weighted_mean, -year, -pollutant, -parameter, -base_year) |>
+      dplyr::mutate(scenario = dplyr::recode(scenario, population_weighted_mean = "tatsächliche Belastung", delta_base = paste0("vermindert vs. ",na.omit(unique(.data$base_year)))))
 
-      data_plot <- dplyr::filter(data, parameter == !!parameter)
-      pollutant <- unique(data_plot$pollutant)
-      ggplot_timeseries_bars(data_plot,
-                             titlelab = ggplot2::ggtitle(
-                               label = openair::quickText(paste0("Bevölkerungsgewichtete Schadstoffbelastung ",longpollutant(pollutant))),
-                               subtitle = openair::quickText(paste0(pollutant,", mittlere Schadstoffbelastung pro Einwohner/in (µg/m3)"))
-                             ),
-                             captionlab = ggplot2::labs(caption = "Datengrundlage: BAFU & BFS"),
-                             theme = theme_ts
-      )
+    plots <-
+      lapply(setNames(parameters, parameters), function(parameter) {
 
-    })
+        data_plot <- dplyr::filter(data, parameter == !!parameter)
+        pollutant <- unique(data_plot$pollutant)
+        ggplot_timeseries_bars(data_plot,
+                               titlelab = ggplot2::ggtitle(
+                                 label = openair::quickText(paste0("Bevölkerungsgewichtete Schadstoffbelastung ",longpollutant(pollutant))),
+                                 subtitle = openair::quickText(paste0(pollutant,", mittlere Schadstoffbelastung pro Einwohner/in (µg/m3)"))
+                               ),
+                               captionlab = ggplot2::labs(caption = "Datengrundlage: BAFU & BFS"),
+                               theme = theme_ts
+        )
+
+      })
+
+  }
+
+  if (version == "subareas") {
+
+    data <-
+      data |>
+      dplyr::select(!!id_subareas, year, pollutant, parameter, population_weighted_mean) |>
+      tidyr::gather(scenario, population_weighted_mean, -!!id_subareas, -year, -pollutant, -parameter)
+
+    plots <-
+      lapply(setNames(parameters, parameters), function(parameter) {
+
+        data_plot <- dplyr::filter(data, parameter == !!parameter)
+        pollutant <- unique(data_plot$pollutant)
+        ggplot_timeseries_lines(data_plot,
+                                mapping = ggplot2::aes(x = year, y = population_weighted_mean, color = !!id_subareas),
+                                titlelab = ggplot2::ggtitle(
+                                  label = openair::quickText(paste0("Bevölkerungsgewichtete Schadstoffbelastung ",longpollutant(pollutant))),
+                                  subtitle = openair::quickText(paste0(pollutant,", mittlere Schadstoffbelastung pro Einwohner/in (µg/m3)"))
+                                ),
+                                captionlab = ggplot2::labs(caption = "Datengrundlage: BAFU & BFS"),
+                                theme = theme_ts
+        )
+
+
+      })
+  }
 
   return(plots)
 }

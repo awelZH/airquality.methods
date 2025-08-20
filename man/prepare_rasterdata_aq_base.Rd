@@ -7,10 +7,6 @@
 prepare_rasterdata_aq_base(data_raster_bfs, data_raster_aq, base_year)
 }
 \arguments{
-\item{data_raster_bfs}{}
-
-\item{data_raster_aq}{}
-
 \item{years}{}
 }
 \description{

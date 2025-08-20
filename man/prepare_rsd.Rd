@@ -7,8 +7,6 @@
 prepare_rsd(data, rsd_auxiliary)
 }
 \arguments{
-\item{data}{}
-
 \item{rsd_auxiliary}{}
 }
 \description{

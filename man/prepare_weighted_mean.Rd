@@ -4,15 +4,16 @@
 \alias{prepare_weighted_mean}
 \title{Merge municipaity boundaries with BFS statpop spatial rasterdata, convert respective data as well as air quality spatial rasterdata to combined tibble dataset for use in script to calculate population weighted means}
 \usage{
-prepare_weighted_mean(data_raster_bfs, data_raster_aq, years, boundaries)
+prepare_weighted_mean(
+  data_raster_bfs,
+  data_raster_aq,
+  years,
+  boundaries,
+  join_by = "bfsnr",
+  id_subareas = "gemeindename"
+)
 }
 \arguments{
-\item{data_raster_bfs}{}
-
-\item{data_raster_aq}{}
-
-\item{years}{}
-
 \item{boundaries}{}
 }
 \description{

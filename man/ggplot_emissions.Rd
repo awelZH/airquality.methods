@@ -6,7 +6,6 @@
 \usage{
 ggplot_emissions(
   data,
-  cols,
   relative = FALSE,
   pos = "stack",
   width = 0.8,

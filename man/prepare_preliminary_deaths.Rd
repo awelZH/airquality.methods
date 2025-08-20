@@ -12,12 +12,6 @@ prepare_preliminary_deaths(
 )
 }
 \arguments{
-\item{data_expo_weighmean}{}
-
-\item{data_mortality}{}
-
-\item{outcomes_meta}{}
-
 \item{conc_threshold}{}
 }
 \description{

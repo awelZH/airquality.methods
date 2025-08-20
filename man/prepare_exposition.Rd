@@ -7,10 +7,6 @@
 prepare_exposition(data_raster_bfs, data_raster_aq, years)
 }
 \arguments{
-\item{data_raster_bfs}{}
-
-\item{data_raster_aq}{}
-
 \item{years}{}
 }
 \description{

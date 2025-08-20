@@ -164,30 +164,33 @@ simplify_aq_rasterdata <- function(data) {
 #' Merge air quality and statpop rasterdata with municipilty boundaries and convert to a common tibble
 #'
 #' @param data_raster
-#' @param data_municip
+#' @param data_subareas
+#' @param join_by
+#' @param id_subareas
 #'
 #' @keywords internal
-merge_statpop_with_municipalities <- function(data_raster, data_municip) {
+merge_statpop_with_subareas <- function(data_raster, data_subareas, join_by = "bfs", id_subareas = "gemeindename") {
 
-  municip_raster <-
-    data_municip |>
-    dplyr::select(bfs) |>
+  subareas_raster <-
+    data_subareas |>
+    dplyr::select(!!join_by) |>
     stars::st_rasterize(data_raster)
   #TODO: terra::rasterize(..., cover = TRUE, touches = TRUE)
 
   data <-
     dplyr::left_join(
-      tibble::as_tibble(municip_raster),
+      tibble::as_tibble(subareas_raster),
       tibble::as_tibble(data_raster),
       by = c("x","y")) |>
     dplyr::filter(!is.na(RELI) & RELI != 0 & !is.na(population))
 
   data <-
-    data_municip |>
+    data_subareas |>
     sf::st_drop_geometry() |>
-    dplyr::select(bfs, gemeindename) |>
-    dplyr::right_join(data, by = "bfs") |>
-    dplyr::rename(bfsnr = bfs)
+    dplyr::select(!!join_by, !!id_subareas) |>
+    dplyr::right_join(data, by = join_by)
+
+  if (join_by == "bfs") {data <- dplyr::rename(data, bfsnr = bfs)}
 
   return(data)
 }

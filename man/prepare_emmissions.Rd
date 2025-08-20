@@ -12,8 +12,6 @@ prepare_emmissions(
 )
 }
 \arguments{
-\item{data}{}
-
 \item{filter_args}{}
 }
 \description{

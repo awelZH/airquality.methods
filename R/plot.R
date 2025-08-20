@@ -1,5 +1,5 @@
 
-#' Plot timeseries yearly monitoring-data using ggplot2
+#' Plot timeseries yearly using bars
 #'
 #' @param data
 #' @param mapping
@@ -40,6 +40,41 @@ ggplot_timeseries <- function(data, mapping = ggplot2::aes(x = year, y = concent
 
   return(plot)
 }
+
+
+#' Plot timeseries using lines
+#'
+#' @param data
+#' @param mapping
+#' @param ylims
+#' @param ybreaks
+#' @param titlelab
+#' @param captionlab
+#' @param pointshape
+#' @param pointsize
+#' @param threshold
+#' @param theme
+#'
+#' @keywords internal
+ggplot_timeseries_ver2 <- function(data, mapping = ggplot2::aes(x = year, y = population_weighted_mean, fill = scenario), ylims = c(0,NA), ybreaks = waiver(), titlelab = NULL, captionlab = NULL,
+                                   theme = ggplot2::theme_minimal()) {
+
+  plot <-
+    ggplot2::ggplot(data, mapping = mapping) +
+    # ggplot2::geom_bar(stat = "identity", color = NA, fill = "#50586C") +
+    ggplot2::geom_line() +
+    ggplot2::scale_x_continuous(breaks = seq(1990,2100,5), expand = c(0.01,0.01)) +
+    ggplot2::scale_y_continuous(limits = ylims, breaks = ybreaks, expand = c(0.01,0.01)) +
+    colorspace::scale_color_discrete_sequential(name = "Kanton", palette = "Viridis") +
+    titlelab +
+    captionlab +
+    theme
+
+  # plot <- ggiraph::girafe(ggobj = plot, width_svg = 6, height_svg = 4)
+
+  return(plot)
+}
+
 
 
 #' Plot bar timeseries for yearly population-weighted mean concentration or health-outcome data using ggplot2

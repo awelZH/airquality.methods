@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot.R
 \name{ggplot_timeseries}
 \alias{ggplot_timeseries}
-\title{Plot timeseries yearly monitoring-data using ggplot2}
+\title{Plot timeseries yearly using bars}
 \usage{
 ggplot_timeseries(
   data,
@@ -22,6 +22,6 @@ ggplot_timeseries(
 \item{theme}{}
 }
 \description{
-Plot timeseries yearly monitoring-data using ggplot2
+Plot timeseries yearly using bars
 }
 \keyword{internal}

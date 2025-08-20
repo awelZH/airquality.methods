@@ -165,7 +165,7 @@ prepare_weighted_mean <- function(data_raster_bfs, data_raster_aq, years, bounda
     years |>
     as.character() |>
     purrr::map(function(yr) {
-      merge_statpop_with_subareas(data_raster_bfs[[yr]], boundaries) |>
+      merge_statpop_with_subareas(data_raster_bfs[[yr]], boundaries, join_by, id_subareas) |>
         dplyr::mutate(year = as.numeric(yr))
     }) |>
     dplyr::bind_rows()

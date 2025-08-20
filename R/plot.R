@@ -56,7 +56,7 @@ ggplot_timeseries <- function(data, mapping = ggplot2::aes(x = year, y = concent
 #' @param theme
 #'
 #' @keywords internal
-ggplot_timeseries_ver2 <- function(data, mapping = ggplot2::aes(x = year, y = population_weighted_mean, fill = scenario), ylims = c(0,NA), ybreaks = waiver(), titlelab = NULL, captionlab = NULL,
+ggplot_timeseries_lines <- function(data, mapping = ggplot2::aes(x = year, y = population_weighted_mean, fill = scenario), ylims = c(0,NA), ybreaks = waiver(), titlelab = NULL, captionlab = NULL,
                                    theme = ggplot2::theme_minimal()) {
 
   plot <-
@@ -385,9 +385,10 @@ expositionpars <- function(parameter) {
 #'
 #' @param data
 #' @param parameters
+#' @param cap
 #'
 #' @keywords internal
-plot_pars_monitoring_timeseries <- function(data, parameters) {
+plot_pars_monitoring_timeseries <- function(data, parameters, cap = "Datenabdeckung: Kanton Zürich, Daten: Ostluft & NABEL (BAFU & Empa)") {
 
   plots <-
     lapply(setNames(parameters, parameters), function(parameter) {
@@ -403,7 +404,7 @@ plot_pars_monitoring_timeseries <- function(data, parameters) {
                           label = openair::quickText(paste0("Luftqualitätsmesswerte ",longpollutant(pollutant))),
                           subtitle = openair::quickText(paste0(pollutant, ", ", metric," (", unit, ")"))
                         ),
-                        captionlab = ggplot2::labs(caption = "Datenabdeckung: Kanton Zürich, Daten: Ostluft & NABEL (BAFU & Empa)"),
+                        captionlab = ggplot2::labs(caption = cap),
                         pointsize = pointsize, theme = theme_ts, threshold = timeseriespars(parameter)$thresh
       ) +
         scale_color_siteclass
@@ -464,7 +465,7 @@ plot_timeseries_ndep_bars <- function(data, xlim = NULL, xbreaks = waiver(), lin
 #' @param data
 #'
 #' @keywords internal
-plot_all_expo_hist <- function(parameter, data) {
+plot_all_expo_hist <- function(parameter, data, sub = "im Kanton Zürich") {
 
   data <- dplyr::filter(data, parameter == !!parameter)
   years_exposition <- setNames(unique(data$year), as.character(unique(data$year)))
@@ -481,7 +482,7 @@ plot_all_expo_hist <- function(parameter, data) {
       xlabel = ggplot2::xlab(openair::quickText(paste0(pollutant, " ", metric, " (µg/m3)"))),
       titlelab = ggplot2::ggtitle(
         label = openair::quickText(paste0("Bevölkerungsexposition ", longpollutant(pollutant))),
-        subtitle = paste0("Anzahl Personen, Wohnbevölkerung im Kanton Zürich im Jahr ",year)
+        subtitle = paste0("Anzahl Personen, Wohnbevölkerung ",sub," im Jahr ",year)
       ),
       captionlab = ggplot2::labs(caption = "Datengrundlage: BAFU & BFS"),
       # fill_scale = immissionscale(parameter),
@@ -502,7 +503,7 @@ plot_all_expo_hist <- function(parameter, data) {
 #' @param data
 #'
 #' @keywords internal
-plot_all_expo_cumul <- function(parameter, data) {
+plot_all_expo_cumul <- function(parameter, data, sub = "im Kanton Zürich") {
 
   data <- dplyr::filter(data, parameter == !!parameter)
   years_exposition <- setNames(unique(data$year), as.character(unique(data$year)))
@@ -518,7 +519,7 @@ plot_all_expo_cumul <- function(parameter, data) {
       xlabel = ggplot2::xlab(openair::quickText(paste0(pollutant," ",metric," (µg/m3)"))),
       titlelab = ggplot2::ggtitle(
         label = openair::quickText(paste0("Bevölkerungsexposition ",longpollutant(parameter))),
-        subtitle = openair::quickText(paste0("relativer Anteil (kumuliert), Wohnbevölkerung im Kanton Zürich im Jahr ",year))
+        subtitle = openair::quickText(paste0("relativer Anteil (kumuliert), Wohnbevölkerung ",sub," im Jahr ",year))
       ),
       captionlab = ggplot2::labs(caption = "Datengrundlage: BAFU & BFS"),
       theme = theme_ts
@@ -550,14 +551,14 @@ plot_pars_popmean_timeseries <- function(data, parameters) {
 
       data_plot <- dplyr::filter(data, parameter == !!parameter)
       pollutant <- unique(data_plot$pollutant)
-        ggplot_timeseries_bars(data_plot,
-          titlelab = ggplot2::ggtitle(
-            label = openair::quickText(paste0("Bevölkerungsgewichtete Schadstoffbelastung ",longpollutant(pollutant))),
-            subtitle = openair::quickText(paste0(pollutant,", mittlere Schadstoffbelastung pro Einwohner/in (µg/m3)"))
-          ),
-          captionlab = ggplot2::labs(caption = "Datengrundlage: BAFU & BFS"),
-          theme = theme_ts
-        )
+      ggplot_timeseries_bars(data_plot,
+                             titlelab = ggplot2::ggtitle(
+                               label = openair::quickText(paste0("Bevölkerungsgewichtete Schadstoffbelastung ",longpollutant(pollutant))),
+                               subtitle = openair::quickText(paste0(pollutant,", mittlere Schadstoffbelastung pro Einwohner/in (µg/m3)"))
+                             ),
+                             captionlab = ggplot2::labs(caption = "Datengrundlage: BAFU & BFS"),
+                             theme = theme_ts
+      )
 
     })
 
@@ -644,10 +645,10 @@ plot_all_popweighmean_maps <- function(parameter, data, data_canton) {
         plot.title = ggplot2::element_text(hjust = 0.5),
         plot.subtitle = ggplot2::element_text(hjust = 0.5),
         plot.caption = ggplot2::element_text(hjust = 0.5)
-        ) +
+      ) +
       ggplot2::ggtitle(
         label = openair::quickText(paste0("Bevölkerungsgewichtete Schadstoffbelastung ",longpollutant(pollutant))),
-        subtitle = openair::quickText(paste0("Mittlere ",pollutant,"-Belastung pro Einwohner/in im Jahr ",year,"\nganzer Kanton = ",canton," µg/m3"))
+        subtitle = openair::quickText(paste0("Mittlere ",pollutant,"-Belastung pro Einwohner/in im Jahr ",year,"\ngesamt = ",canton," µg/m3"))
       ) +
       ggplot2::labs(caption = "Datengrundlage: BAFU & BFS")
 
@@ -667,7 +668,7 @@ plot_all_popweighmean_maps <- function(parameter, data, data_canton) {
 #' @param threshold_ndep
 #'
 #' @keywords internal
-plot_all_expo_hist_ndep <- function(data, threshold_ndep) {
+plot_all_expo_hist_ndep <- function(data, threshold_ndep, sub = "im Kanton Zürich") {
 
   years_exposition <- setNames(unique(data$year), as.character(unique(data$year)))
 
@@ -679,7 +680,7 @@ plot_all_expo_hist_ndep <- function(data, threshold_ndep) {
       xlabel = ggplot2::xlab(expression("max. Stickstoff-Überschuss im Vergleich zu den kritischen Eintragsraten (kgN " * ha^-1 * Jahr^-1 * ")")),
       titlelab = ggplot2::ggtitle(
         label = openair::quickText("Exposition empfindlicher Ökosysteme durch Stickstoffeinträge"),
-        subtitle = paste0("Anzahl empfindlicher Ökosysteme im Kanton Zürich im Jahr ", year)
+        subtitle = paste0("Anzahl empfindlicher Ökosysteme ",sub," im Jahr ", year)
       ),
       captionlab = ggplot2::labs(caption = "Daten: BAFU"),
       # fill_scale = immissionscale("Ndep"),
@@ -699,7 +700,7 @@ plot_all_expo_hist_ndep <- function(data, threshold_ndep) {
 #' @param threshold_ndep
 #'
 #' @keywords internal
-plot_all_expo_cumul_ndep <- function(data, threshold_ndep) {
+plot_all_expo_cumul_ndep <- function(data, threshold_ndep, sub = "im Kanton Zürich") {
 
   years_exposition <- setNames(unique(data$year), as.character(unique(data$year)))
 
@@ -711,7 +712,7 @@ plot_all_expo_cumul_ndep <- function(data, threshold_ndep) {
       xlabel = ggplot2::xlab(expression("max. Stickstoff-Überschuss im Vergleich zu den kritischen Eintragsraten (kgN " * ha^-1 * Jahr^-1 * ")")),
       titlelab = ggplot2::ggtitle(
         label = openair::quickText("Exposition empfindlicher Ökosysteme durch Stickstoffeinträge"),
-        subtitle = paste0("relativer Anteil empfindlicher Ökosysteme (kumuliert) im Kanton Zürich im Jahr ", year)
+        subtitle = paste0("relativer Anteil empfindlicher Ökosysteme (kumuliert) ",sub," im Jahr ", year)
       ),
       captionlab = ggplot2::labs(caption = "Daten: BAFU"),
       theme = theme_ts

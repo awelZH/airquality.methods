@@ -4,7 +4,7 @@
 \alias{plot_all_expo_hist_ndep}
 \title{Wrapper to plot sensitive ecosystem nitrogen deposition exposition histograms in a list by year}
 \usage{
-plot_all_expo_hist_ndep(data, threshold_ndep)
+plot_all_expo_hist_ndep(data, threshold_ndep, sub = "im Kanton Zürich")
 }
 \arguments{
 \item{threshold_ndep}{}

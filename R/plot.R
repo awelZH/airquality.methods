@@ -537,9 +537,10 @@ plot_all_expo_cumul <- function(parameter, data, sub = "im Kanton Zürich") {
 #' @param parameters
 #' @param version
 #' @param id_subareas
+#' @param y
 #'
 #' @keywords internal
-plot_pars_popmean_timeseries <- function(data, parameters, version = "overall", id_subareas = NULL) {
+plot_pars_popmean_timeseries <- function(data, parameters, version = "overall", id_subareas = NULL, y = "population_weighted_mean") {
 
   if (version == "overall") {
 
@@ -556,6 +557,7 @@ plot_pars_popmean_timeseries <- function(data, parameters, version = "overall", 
         data_plot <- dplyr::filter(data, parameter == !!parameter)
         pollutant <- unique(data_plot$pollutant)
         ggplot_timeseries_bars(data_plot,
+                               mapping = ggplot2::aes(x = year, y = !!rlang::sym(y), fill = scenario),
                                titlelab = ggplot2::ggtitle(
                                  label = openair::quickText(paste0("Bevölkerungsgewichtete Schadstoffbelastung ",longpollutant(pollutant))),
                                  subtitle = openair::quickText(paste0(pollutant,", mittlere Schadstoffbelastung pro Einwohner/in (µg/m3)"))
@@ -581,7 +583,7 @@ plot_pars_popmean_timeseries <- function(data, parameters, version = "overall", 
         data_plot <- dplyr::filter(data, parameter == !!parameter)
         pollutant <- unique(data_plot$pollutant)
         ggplot_timeseries_lines(data_plot,
-                                mapping = ggplot2::aes(x = year, y = population_weighted_mean, color = !!rlang::sym(id_subareas)),
+                                mapping = ggplot2::aes(x = year, y = !!rlang::sym(y), color = !!rlang::sym(id_subareas)),
                                 titlelab = ggplot2::ggtitle(
                                   label = openair::quickText(paste0("Bevölkerungsgewichtete Schadstoffbelastung ",longpollutant(pollutant))),
                                   subtitle = openair::quickText(paste0(pollutant,", mittlere Schadstoffbelastung pro Einwohner/in (µg/m3)"))

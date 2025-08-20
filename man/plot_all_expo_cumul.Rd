@@ -4,7 +4,7 @@
 \alias{plot_all_expo_cumul}
 \title{Wrapper to plot pollutant-specific cumulated population exposition distribution in a nested list by pollutant & year}
 \usage{
-plot_all_expo_cumul(parameter, data)
+plot_all_expo_cumul(parameter, data, sub = "im Kanton Zürich")
 }
 \arguments{
 \item{data}{}

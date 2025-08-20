@@ -4,7 +4,7 @@
 \alias{plot_all_expo_hist}
 \title{Wrapper to plot pollutant-specific population exposition histograms in a nested list by pollutant & year}
 \usage{
-plot_all_expo_hist(parameter, data)
+plot_all_expo_hist(parameter, data, sub = "im Kanton Zürich")
 }
 \arguments{
 \item{data}{}

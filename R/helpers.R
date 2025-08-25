@@ -72,7 +72,7 @@ longpollutant <- function(x) {
     x == "CO" ~ "Kohlenstoffmonoxid",
     x == "SO2" ~ "Schwefeldioxîd",
     x == "NOx" ~ "Stickoxide",
-    x == "eBC" ~ "Russ",
+    x == "eBC" ~ "Russ im Feinstaub",
     x == "O3" ~ "Ozon",
     x == "O3_max_98p_m1" ~ "Ozon",
     x == "O3_peakseason_mean_d1_max_mean_h8gl" ~ "Ozon",

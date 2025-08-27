@@ -822,3 +822,55 @@ plotlist_to_tibble <- function(plotlist, type, source) {
   return(plottibble)
 }
 
+
+
+#' Plot pre-compiled relative trends of emissions and immissions vs. a reference year including trend fit vor various pollutants
+#'
+#' @param data_trends
+#' @param fit_formula
+#' @param fit_method
+#' @param fit_se
+#' @param pt_size
+#' @param facet_ncol
+#' @param facet_scale
+#' @param theme
+#' @param titlelab
+#' @param captionlab
+#'
+#' @keywords internal
+plot_timeseries_trend_relative <- function(data_trends,
+                                     fit_formula = 0.6, fit_method = "rlm", fit_se = FALSE,
+                                     pt_size = 1.5, facet_ncol = NULL, facet_scale = "free_y", theme = ggplot2::theme_minimal(),
+                                     titlelab = NULL, captionlab = NULL
+) {
+
+  if (is.numeric(fit_formula)) {
+    smooth <- ggplot2::geom_smooth(mapping = ggplot2::aes(group = parameter, color = parameter), span = fit_formula, se = fit_se)
+  } else if (is.formula(fit_formula)) {
+    smooth <- ggplot2::geom_smooth(mapping = ggplot2::aes(group = parameter, color = parameter), method = fit_method, formula = fit_formula, se = fit_se)
+  } else if (is.na(fit_formula)) {
+    smooth <- ggplot2::geom_path()
+  }
+
+  plot <-
+    data |>
+    ggplot2::ggplot(ggplot2::aes(x = year, y = value, group = pollutant, color = parameter)) +
+    ggplot2::geom_hline(yintercept = 0, linetype = 2, color = "gray30") +
+    smooth +
+    ggplot2::geom_point(shape = 21, fill = "white", size = pt_size) +
+    ggplot2::scale_x_continuous(expand = c(0.01,0.01)) +
+    ggplot2::scale_y_continuous(labels = scales::percent_format(), expand = c(0.04, 0.04)) +
+    ggplot2::scale_color_manual(values = c("relative Immission" = "steelblue", "relative Emission" = "gold3")) +
+    ggplot2::facet_wrap(pollutant~., ncol = facet_ncol, scales = facet_scale, axes = "all_x") +
+    theme +
+    ggplot2::theme(
+      strip.text.x = ggplot2::element_text(hjust = 0),
+      legend.title = ggplot2::element_blank(),
+      legend.position = "bottom"
+    ) +
+    titlelab +
+    captionlab
+
+  return(plot)
+}
+

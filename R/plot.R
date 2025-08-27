@@ -853,7 +853,7 @@ plot_timeseries_trend_relative <- function(data_trends,
   }
 
   plot <-
-    data |>
+    data_trends |>
     ggplot2::ggplot(ggplot2::aes(x = year, y = value, group = pollutant, color = parameter)) +
     ggplot2::geom_hline(yintercept = 0, linetype = 2, color = "gray30") +
     smooth +

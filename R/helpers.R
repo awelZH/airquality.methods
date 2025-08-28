@@ -98,6 +98,7 @@ shortpollutant <- function(x) {
     x == "O3_max_98p_m1" ~ "O3",
     x == "O3_peakseason_mean_d1_max_mean_h8gl" ~ "O3",
     x == "O3_nb_h1>120" ~ "O3",
+    x == "O3_max_h1" ~ "O3",
     TRUE ~ x
   )
 
@@ -110,31 +111,55 @@ shortpollutant <- function(x) {
 #' @param x
 #'
 #' @keywords internal
-longmetric <- function(x) {
+longmetric <- function(x, interval = "y1") {
 
-  long <- dplyr::case_when(
-    x == "PM10" ~ "Jahresmittel",
-    x == "PM2.5" ~ "Jahresmittel",
-    x == "NO2" ~ "Jahresmittel",
-    x == "NH3" ~ "Jahresmittel",
-    x == "NHx" ~ "Jahresmittel",
-    x == "Nr" ~ "Jahresmittel",
-    x == "NMVOC" ~ "Jahresmittel",
-    x == "NH3" ~ "Jahresmittel",
-    x == "CO" ~ "Jahresmittel",
-    x == "SO2" ~ "Jahresmittel",
-    x == "NOx" ~ "Jahresmittel",
-    x == "eBC" ~ "Jahresmittel",
-    x == "N-Eintrag" ~ "Jahressumme",
-    x == "Ndep" ~ "Jahressumme",
-    x == "O3" ~ "Jahresmittel",
-    x == "O3_max_98p_m1" ~ "typische Spitzenbelastung",
-    x == "O3_peakseason_mean_d1_max_mean_h8gl" ~ "mittlere Sommertagbelastung",
-    # x == "O3_max_98p_m1" ~ "höchstes monatl. 98%-Perzentil der ½-Stundenmittel",
-    # x == "O3_peakseason_mean_d1_max_mean_h8gl" ~ "mittlere sommerliche Tagesbelastung",
-    x == "O3_nb_h1>120" ~ "Anzahl Stundenmittel > 120 μg/m3",
-    TRUE ~ x
-  )
+  if (interval == "y1") {
+
+    long <- dplyr::case_when(
+      x == "PM10" ~ "Jahresmittel",
+      x == "PM2.5" ~ "Jahresmittel",
+      x == "NO2" ~ "Jahresmittel",
+      x == "NH3" ~ "Jahresmittel",
+      x == "NHx" ~ "Jahresmittel",
+      x == "Nr" ~ "Jahresmittel",
+      x == "NMVOC" ~ "Jahresmittel",
+      x == "NH3" ~ "Jahresmittel",
+      x == "CO" ~ "Jahresmittel",
+      x == "SO2" ~ "Jahresmittel",
+      x == "NOx" ~ "Jahresmittel",
+      x == "eBC" ~ "Jahresmittel",
+      x == "N-Eintrag" ~ "Jahressumme",
+      x == "Ndep" ~ "Jahressumme",
+      x == "O3" ~ "Jahresmittel",
+      x == "O3_max_98p_m1" ~ "typische Spitzenbelastung",
+      x == "O3_peakseason_mean_d1_max_mean_h8gl" ~ "mittlere Sommertagbelastung",
+      # x == "O3_max_98p_m1" ~ "höchstes monatl. 98%-Perzentil der ½-Stundenmittel",
+      # x == "O3_peakseason_mean_d1_max_mean_h8gl" ~ "mittlere sommerliche Tagesbelastung",
+      x == "O3_nb_h1>120" ~ "Anzahl Stundenmittel > 120 μg/m3",
+      TRUE ~ x
+    )
+
+  }
+
+  if (interval == "d1") {
+
+    long <- dplyr::case_when(
+      x == "PM10" ~ "Tagesmittel",
+      x == "PM2.5" ~ "Tagesmittel",
+      x == "NO2" ~ "Tagesmittel",
+      x == "NH3" ~ "Tagesmittel",
+      x == "NMVOC" ~ "Tagesmittel",
+      x == "NH3" ~ "Tagesmittel",
+      x == "CO" ~ "Tagesmittel",
+      x == "SO2" ~ "Tagesmittel",
+      x == "NOx" ~ "Tagesmittel",
+      x == "eBC" ~ "Tagesmittel",
+      x == "O3" ~ "Tagesmittel",
+      x == "O3_max_h1" ~ "höchstes Stundenmittel",
+      TRUE ~ x
+    )
+
+  }
 
   return(long)
 }
@@ -150,6 +175,7 @@ longparameter <- function(x) {
   long <- dplyr::case_when(
     x == "O3_max_98p_m1" ~ "max. monatl. 98%-Perz.",
     x == "O3_peakseason_mean_d1_max_mean_h8gl" ~ "Sommersaison",
+    x == "O3_max_h1" ~ "höchstes Stundenmittel",
     TRUE ~ "Jahresmittel"
   )
 

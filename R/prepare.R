@@ -159,7 +159,7 @@ prepare_exposition <- function(data_raster_bfs, data_raster_aq, years) {
 #' @param boundaries
 #'
 #' @export
-prepare_weighted_mean <- function(data_raster_bfs, data_raster_aq, years, boundaries, join_by = "bfsnr", id_subareas = "gemeindename") {
+prepare_weighted_mean <- function(data_raster_bfs, data_raster_aq, years, boundaries, join_by = "bfs", id_subareas = "gemeindename") {
 
   data_statpop_subareas <-
     years |>
@@ -169,6 +169,11 @@ prepare_weighted_mean <- function(data_raster_bfs, data_raster_aq, years, bounda
         dplyr::mutate(year = as.numeric(yr))
     }) |>
     dplyr::bind_rows()
+
+  if (join_by == "bfs") {
+    data_statpop_subareas <- dplyr::rename(data_statpop_subareas, bfsnr = bfs)
+    join_by <- "bfsnr"
+  }
 
   data_aq <-
     years |>

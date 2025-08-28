@@ -190,8 +190,6 @@ merge_statpop_with_subareas <- function(data_raster, data_subareas, join_by = "b
     dplyr::select(!!join_by, !!id_subareas) |>
     dplyr::right_join(data, by = join_by)
 
-  if (join_by == "bfs") {data <- dplyr::rename(data, bfsnr = bfs)}
-
   return(data)
 }
 

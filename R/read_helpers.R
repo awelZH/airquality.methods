@@ -107,18 +107,57 @@ read_bafu_shp <- function(file){
 # }
 
 
-#' Get dataset metadata from geo.admin api
+
+
+
+
+get_assets <- function(metadata, filter) {
+
+  assets <- unlist(purrr::map(metadata$features, function(x) x$assets[[which(stringr::str_detect(names(x$assets), filter))]]$href))
+
+  return(assets)
+}
+
+check_for_more <- function(metadata) {
+
+  more <- metadata$links[which(purrr::map(metadata$links, function(x) x$rel) == "next")]
+  more <- unlist(purrr::map(more, function(x) x$href))
+
+  return(more)
+}
+
+
+#' Get dataset asset-metadata from geo.admin api
 #'
-#' @param id
+#' @param collection
+#' @param filter
+#' @param stac_version
+#' @param max_check_more
 #'
 #' @keywords internal
-get_geo_admin_metadata <- function(id, stac_version = "0.9", filter = "tiff"){
+get_geo_admin_metadata <- function(collection, filter = ".tif", stac_version = "0.9", max_check_more = 3){
 
-  metadata_url <- paste0("https://data.geo.admin.ch/api/stac/v",stac_version,"/collections/",id,"/items")
+  metadata_url <- paste0("https://data.geo.admin.ch/api/stac/v",stac_version,"/collections/",collection,"/items")
   metadata <- rjson::fromJSON(file = metadata_url)
-  url <- unlist(purrr::map(metadata$features, function(x) x$assets[which(grepl(filter, x$assets))][[1]]$href))
 
-  return(url)
+  all_metadata <- list(metadata)
+  more <- check_for_more(all_metadata[[1]])
+  i <- 1
+
+  while (is.character(more)) {
+
+    i <- i + 1
+    all_metadata <- c(all_metadata, list(rjson::fromJSON(file = more)))
+    more <- check_for_more(all_metadata[[i]])
+
+  }
+
+  assets <-
+    all_metadata |>
+    purrr::map(function(x) get_assets(x, filter)) |>
+    unlist()
+
+  return(assets)
 }
 
 

@@ -7,13 +7,7 @@
 download_file(download_url, destination_path, file_ext)
 }
 \arguments{
-\item{download_url}{}
-
-\item{destination_path}{}
-
 \item{file_ext}{}
-
-\item{wcs_stack}{}
 
 \item{version}{}
 }

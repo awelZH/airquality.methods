@@ -7,10 +7,6 @@
 read_statpop_csv(file, year, crs = 2056)
 }
 \arguments{
-\item{file}{}
-
-\item{year}{}
-
 \item{crs}{}
 }
 \description{

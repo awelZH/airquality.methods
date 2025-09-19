@@ -824,13 +824,12 @@ plotlist_to_tibble <- function(plotlist, type, source) {
 
 
 
-#' Plot pre-compiled relative trends of emissions and immissions vs. a reference year including trend fit vor various pollutants
+#' Plot pre-compiled relative trends of emissions and immissions vs. a reference year for various pollutants
 #'
 #' @param data_trends
-#' @param fit_formula
-#' @param fit_method
-#' @param fit_se
+#' @param detailed
 #' @param pt_size
+#' @param linewdth
 #' @param facet_ncol
 #' @param facet_scale
 #' @param theme
@@ -838,30 +837,43 @@ plotlist_to_tibble <- function(plotlist, type, source) {
 #' @param captionlab
 #'
 #' @keywords internal
-plot_timeseries_trend_relative <- function(data_trends,
-                                     fit_formula = 0.6, fit_method = "rlm", fit_se = FALSE,
-                                     pt_size = 1.5, facet_ncol = NULL, facet_scale = "free_y", theme = ggplot2::theme_minimal(),
-                                     titlelab = NULL, captionlab = NULL
+plot_timeseries_trend_relative <- function(data_trends, detailed = FALSE,
+                                           pt_size = 1.5, linewdth = 1, facet_ncol = NULL, facet_scale = "free_y", theme = ggplot2::theme_minimal(),
+                                           titlelab = NULL, captionlab = NULL
 ) {
-
-  if (is.numeric(fit_formula)) {
-    smooth <- ggplot2::geom_smooth(mapping = ggplot2::aes(group = parameter, color = parameter), span = fit_formula, se = fit_se)
-  } else if (is.formula(fit_formula)) {
-    smooth <- ggplot2::geom_smooth(mapping = ggplot2::aes(group = parameter, color = parameter), method = fit_method, formula = fit_formula, se = fit_se)
-  } else if (is.na(fit_formula)) {
-    smooth <- ggplot2::geom_path()
-  }
 
   plot <-
     data_trends |>
-    ggplot2::ggplot(ggplot2::aes(x = year, y = value, group = pollutant, color = parameter)) +
-    ggplot2::geom_hline(yintercept = 0, linetype = 2, color = "gray30") +
-    smooth +
-    ggplot2::geom_point(shape = 21, fill = "white", size = pt_size) +
-    ggplot2::scale_x_continuous(expand = c(0.01,0.01)) +
-    ggplot2::scale_y_continuous(labels = scales::percent_format(), expand = c(0.04, 0.04)) +
-    ggplot2::scale_color_manual(values = c("relative Immission" = "steelblue", "relative Emission" = "gold3")) +
-    ggplot2::facet_wrap(pollutant~., ncol = facet_ncol, scales = facet_scale, axes = "all_x") +
+    ggplot(aes(x = year, y = `relative Immission` - 1, color = type)) +
+    geom_hline(yintercept = 0, color = "gray80", linetype = 2) +
+    geom_vline(data = . %>% dplyr::distinct(pollutant, reference_year), mapping = aes(xintercept = reference_year), color = "gray80", linetype = 2)
+
+  if (detailed) {
+
+    plot <-
+      plot +
+      geom_point(data = . %>% dplyr::filter(type != "Median Trend"), mapping = aes(size = type, shape = type), fill = "white") +
+      geom_line(data = . %>% dplyr::filter(type != "Median Messwerte"), mapping = aes(linewidth = type, group = site))
+    # geom_point(mapping = aes(size = n), shape = 21, fill = "white") +
+    # scale_size_binned(name = "Anzahl\nMessorte", breaks = c(-Inf,4,6,8,Inf), range = c(0.25,3)) +
+
+  } else {
+
+    plot <-
+      plot +
+      geom_line(mapping = aes(linewidth = type))
+
+  }
+
+  plot <-
+    plot  +
+    scale_y_continuous(labels = scales::percent_format(), expand = c(0.01,0.01)) +
+    scale_color_manual(name = "Grundlage", values = c("Median Trend" = "steelblue", "Median Messwerte" = "gold3", "Trend pro Standort" = "gray80")) +
+    scale_shape_manual(values = c("Median Messwerte" = 21, "Trend pro Standort" = 19)) +
+    scale_size_manual(values = c("Median Messwerte" = pt_size, "Trend pro Standort" = pt_size * 0.75)) +
+    scale_linewidth_manual(values = c("Median Trend" = linewdth, "Median Messwerte" = linewdth * 0.5, "Trend pro Standort" = linewdth * 0.5)) +
+    guides(shape = "none", size = "none", linewidth = "none") +
+    facet_wrap(pollutant~., axes = "all", ncol = facet_ncol, scales = facet_scale) +
     theme +
     ggplot2::theme(
       strip.text.x = ggplot2::element_text(hjust = 0),
@@ -873,4 +885,3 @@ plot_timeseries_trend_relative <- function(data_trends,
 
   return(plot)
 }
-

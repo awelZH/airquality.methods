@@ -7,10 +7,6 @@
 download_statpop_data(year, destination_path, file_filter = NULL)
 }
 \arguments{
-\item{year}{}
-
-\item{destination_path}{}
-
 \item{file_filter}{}
 }
 \description{

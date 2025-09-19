@@ -7,10 +7,6 @@
 read_geolion_wfs(apiurl, version = "2.0.0", crs = 2056)
 }
 \arguments{
-\item{apiurl}{}
-
-\item{version}{}
-
 \item{crs}{}
 }
 \description{

@@ -4,13 +4,9 @@
 \alias{read_bafu_raster_data}
 \title{Reads raster data from official swisstopo api, used for BAFU data on air pollutants and sensitive ecosystem nitrogen deposition CLE exceedance}
 \usage{
-read_bafu_raster_data(id, years_filter, boundary, crs = 2056)
+read_bafu_raster_data(collection, years_filter, boundary, crs = 2056)
 }
 \arguments{
-\item{id}{}
-
-\item{boundary}{}
-
 \item{crs}{}
 }
 \description{

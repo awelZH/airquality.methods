@@ -12,12 +12,6 @@ get_geolion_wfs_metadata(
 )
 }
 \arguments{
-\item{apiurl}{}
-
-\item{type}{}
-
-\item{version}{}
-
 \item{crs}{}
 }
 \description{

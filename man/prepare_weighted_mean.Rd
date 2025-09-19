@@ -9,7 +9,7 @@ prepare_weighted_mean(
   data_raster_aq,
   years,
   boundaries,
-  join_by = "bfsnr",
+  join_by = "bfs",
   id_subareas = "gemeindename"
 )
 }

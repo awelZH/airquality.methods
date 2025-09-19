@@ -2,14 +2,13 @@
 % Please edit documentation in R/plot.R
 \name{plot_timeseries_trend_relative}
 \alias{plot_timeseries_trend_relative}
-\title{Plot pre-compiled relative trends of emissions and immissions vs. a reference year including trend fit vor various pollutants}
+\title{Plot pre-compiled relative trends of emissions and immissions vs. a reference year for various pollutants}
 \usage{
 plot_timeseries_trend_relative(
   data_trends,
-  fit_formula = 0.6,
-  fit_method = "rlm",
-  fit_se = FALSE,
+  detailed = FALSE,
   pt_size = 1.5,
+  linewdth = 1,
   facet_ncol = NULL,
   facet_scale = "free_y",
   theme = ggplot2::theme_minimal(),
@@ -21,6 +20,6 @@ plot_timeseries_trend_relative(
 \item{captionlab}{}
 }
 \description{
-Plot pre-compiled relative trends of emissions and immissions vs. a reference year including trend fit vor various pollutants
+Plot pre-compiled relative trends of emissions and immissions vs. a reference year for various pollutants
 }
 \keyword{internal}

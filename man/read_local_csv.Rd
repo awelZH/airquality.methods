@@ -12,12 +12,6 @@ read_local_csv(
 )
 }
 \arguments{
-\item{file}{}
-
-\item{delim}{}
-
-\item{locale}{}
-
 \item{...}{}
 }
 \description{

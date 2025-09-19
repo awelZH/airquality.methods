@@ -12,12 +12,6 @@ download_zip(
 )
 }
 \arguments{
-\item{download_url}{}
-
-\item{destination_path}{}
-
-\item{file_filter}{}
-
 \item{file_ext}{}
 }
 \description{

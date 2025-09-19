@@ -7,8 +7,6 @@
 read_all_raster_data(ressources, years, boundary)
 }
 \arguments{
-\item{years}{}
-
 \item{boundary}{}
 
 \item{na_value}{}

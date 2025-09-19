@@ -2,34 +2,19 @@
 % Please edit documentation in R/read_helpers.R
 \name{get_geo_admin_metadata}
 \alias{get_geo_admin_metadata}
-\title{read wcs layer from geolion}
+\title{Get dataset asset-metadata from geo.admin api}
 \usage{
-get_geo_admin_metadata(id, stac_version = "0.9")
+get_geo_admin_metadata(
+  collection,
+  filter = ".tif",
+  stac_version = "0.9",
+  max_check_more = 3
+)
 }
 \arguments{
-\item{id}{}
-
-\item{coverage}{}
-
-\item{na_value}{}
-
-\item{cov_stack}{}
+\item{max_check_more}{}
 }
 \description{
-read wcs layer from geolion
+Get dataset asset-metadata from geo.admin api
 }
-\keyword{Convert}
-\keyword{Get}
-\keyword{a}
-\keyword{api}
-\keyword{coverage}
-\keyword{data.frame}
-\keyword{dataset}
-\keyword{from}
-\keyword{geo.admin}
-\keyword{geolion}
 \keyword{internal}
-\keyword{list}
-\keyword{metadata}
-\keyword{to}
-\keyword{wcs}

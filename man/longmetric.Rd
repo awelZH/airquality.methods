@@ -4,7 +4,7 @@
 \alias{longmetric}
 \title{Recode short pollutant/parameter string to long metric string}
 \usage{
-longmetric(x)
+longmetric(x, interval = "y1")
 }
 \arguments{
 \item{x}{}

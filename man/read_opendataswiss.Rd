@@ -7,10 +7,6 @@
 read_opendataswiss(url, source, file_filter = ".csv")
 }
 \arguments{
-\item{url}{}
-
-\item{source}{}
-
 \item{file_filter}{}
 }
 \description{

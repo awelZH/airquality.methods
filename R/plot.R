@@ -844,16 +844,16 @@ plot_timeseries_trend_relative <- function(data_trends, detailed = FALSE,
 
   plot <-
     data_trends |>
-    ggplot(aes(x = year, y = `relative Immission` - 1, color = type)) +
-    geom_hline(yintercept = 0, color = "gray80", linetype = 2) +
-    geom_vline(data = . %>% dplyr::distinct(pollutant, reference_year), mapping = aes(xintercept = reference_year), color = "gray80", linetype = 2)
+    ggplot2::ggplot(ggplot2::aes(x = year, y = value - 1, color = type)) +
+    ggplot2::geom_hline(yintercept = 0, color = "gray80", linetype = 2) +
+    ggplot2::geom_vline(data = . %>% dplyr::distinct(pollutant, reference_year), mapping = ggplot2::aes(xintercept = reference_year), color = "gray80", linetype = 2)
 
   if (detailed) {
 
     plot <-
       plot +
-      geom_point(data = . %>% dplyr::filter(type != "Median Trend"), mapping = aes(size = type, shape = type), fill = "white") +
-      geom_line(data = . %>% dplyr::filter(type != "Median Messwerte"), mapping = aes(linewidth = type, group = site))
+      ggplot2::geom_point(data = . %>% dplyr::filter(type %in% c("Median Messwerte", "Trend pro Standort")), mapping = ggplot2::aes(size = type, shape = type), fill = "white") +
+      ggplot2::geom_line(data = . %>% dplyr::filter(type %in% c("Trend pro Standort", "Median Trend", "Emission")), mapping = ggplot2::aes(linewidth = type, group = site))
     # geom_point(mapping = aes(size = n), shape = 21, fill = "white") +
     # scale_size_binned(name = "Anzahl\nMessorte", breaks = c(-Inf,4,6,8,Inf), range = c(0.25,3)) +
 
@@ -861,19 +861,19 @@ plot_timeseries_trend_relative <- function(data_trends, detailed = FALSE,
 
     plot <-
       plot +
-      geom_line(mapping = aes(linewidth = type))
+      ggplot2::geom_line(mapping = ggplot2::aes(linewidth = type))
 
   }
 
   plot <-
     plot  +
-    scale_y_continuous(labels = scales::percent_format(), expand = c(0.01,0.01)) +
-    scale_color_manual(name = "Grundlage", values = c("Median Trend" = "steelblue", "Median Messwerte" = "gold3", "Trend pro Standort" = "gray80")) +
-    scale_shape_manual(values = c("Median Messwerte" = 21, "Trend pro Standort" = 19)) +
-    scale_size_manual(values = c("Median Messwerte" = pt_size, "Trend pro Standort" = pt_size * 0.75)) +
-    scale_linewidth_manual(values = c("Median Trend" = linewdth, "Median Messwerte" = linewdth * 0.5, "Trend pro Standort" = linewdth * 0.5)) +
-    guides(shape = "none", size = "none", linewidth = "none") +
-    facet_wrap(pollutant~., axes = "all", ncol = facet_ncol, scales = facet_scale) +
+    ggplot2::scale_y_continuous(labels = scales::percent_format(), expand = c(0.01,0.01)) +
+    ggplot2::scale_color_manual(name = "Grundlage", values = c("Emission" = "gray50", "Median Trend" = "dodgerblue", "Median Messwerte" = "gold3", "Trend pro Standort" = "gray80")) +
+    ggplot2::scale_shape_manual(values = c("Median Messwerte" = 21, "Trend pro Standort" = 19)) +
+    ggplot2::scale_size_manual(values = c("Median Messwerte" = pt_size, "Trend pro Standort" = pt_size * 0.75)) +
+    ggplot2::scale_linewidth_manual(values = c("Emission" = linewdth, "Median Trend" = linewdth, "Median Messwerte" = linewdth * 0.5, "Trend pro Standort" = linewdth * 0.5)) +
+    ggplot2::guides(shape = "none", size = "none", linewidth = "none") +
+    ggplot2::facet_wrap(pollutant~., axes = "all", ncol = facet_ncol, scales = facet_scale) +
     theme +
     ggplot2::theme(
       strip.text.x = ggplot2::element_text(hjust = 0),

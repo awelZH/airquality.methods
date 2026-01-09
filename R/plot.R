@@ -852,8 +852,8 @@ plot_timeseries_trend_relative <- function(data_trends, detailed = FALSE,
 
     plot <-
       plot +
-      ggplot2::geom_point(data = . %>% dplyr::filter(type %in% c("Median Messwerte", "Trend pro Standort")), mapping = ggplot2::aes(size = type, shape = type), fill = "white") +
-      ggplot2::geom_line(data = . %>% dplyr::filter(type %in% c("Trend pro Standort", "Median Trend", "Emission")), mapping = ggplot2::aes(linewidth = type, group = site))
+      ggplot2::geom_point(data = . %>% dplyr::filter(type %in% c("Trend pro Standort")), mapping = ggplot2::aes(size = type, shape = type), fill = "white") +
+      ggplot2::geom_line(data = . %>% dplyr::filter(type %in% c("Median Messwerte", "Trend pro Standort", "Median Trend", "Emission")), mapping = ggplot2::aes(linewidth = type, group = site))
     # geom_point(mapping = aes(size = n), shape = 21, fill = "white") +
     # scale_size_binned(name = "Anzahl\nMessorte", breaks = c(-Inf,4,6,8,Inf), range = c(0.25,3)) +
 

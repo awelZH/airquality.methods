@@ -1,6 +1,6 @@
 Package: airquality.methods
 Title: Methods for analysing air quality in the Canton of Zurich
-Version: 0.2.9.1
+Version: 0.3.0
 Authors@R: 
     person("Jörg", "Sintermann", , "luft@bd.zh.ch", role = c("aut", "cre"),
            comment = c(ORCID = "YOUR-ORCID-ID"))
@@ -18,6 +18,7 @@ Imports:
     readr (>= 2.1.5),
     rjson (>= 0.2.23),
     rlang (>= 1.1.6),
+    rmweather (>= 0.2.63),
     sf (>= 1.0.21),
     stars (>= 0.6.8),
     stringr (>= 1.5.1),

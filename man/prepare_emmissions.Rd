@@ -6,9 +6,8 @@
 \usage{
 prepare_emmissions(
   data,
-  filter_args = canton == "ZH" & year <= lubridate::year(Sys.Date()) & emission != 0 &
-    !(subsector \%in\% c("Weitere Punktquellen OL", "Rheinschifffahrt",
-    "Flugverkehr Genf"))
+  filter_args = stand == max(stand) & canton == "ZH" & emission != 0 & !(subsector \%in\%
+    c("Weitere Punktquellen OL", "Rheinschifffahrt", "Flugverkehr Genf"))
 )
 }
 \arguments{

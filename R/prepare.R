@@ -25,9 +25,7 @@ prepare_ressources <- function(ressources) {
 #' @param filter_args
 #'
 #' @export
-prepare_emmissions <- function(data,
-                               filter_args = canton == 'ZH' & year <= lubridate::year(Sys.Date()) & emission != 0 & !(subsector %in% c('Weitere Punktquellen OL', 'Rheinschifffahrt', 'Flugverkehr Genf'))
-){
+prepare_emmissions <- function(data, filter_args = stand == max(stand) & canton == 'ZH' & emission != 0 & !(subsector %in% c('Weitere Punktquellen OL', 'Rheinschifffahrt', 'Flugverkehr Genf'))){
 
   filter_args <- rlang::enquo(filter_args)
   data_prep <-
@@ -42,9 +40,11 @@ prepare_emmissions <- function(data,
       unit = einheit
     ) |>
     dplyr::mutate(
+      stand = readr::parse_number(stand),
       pollutant = ifelse(pollutant == "BC", "eBC", pollutant)
     ) |>
-    dplyr::filter(!!filter_args)
+    dplyr::filter(!!filter_args) |>
+    dplyr::select(-stand)
 
   return(data_prep)
 }

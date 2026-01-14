@@ -285,12 +285,12 @@ aggregate_trend_results <- function(trends, reference_year_fun, nmin_sites_fun) 
     ) |>
     dplyr::ungroup() |>
     dplyr::mutate(
+      reference_year = reference_year_fun(parameter),
       pollutant = shortpollutant(parameter),
       pollutant = longpollutant(pollutant),
       metric = longparameter(parameter),
       nmin = nmin_sites_fun(pollutant),
-      `relative Immission` = ifelse(n < nmin, NA, `relative Immission`),
-      reference_year = reference_year_fun(pollutant),
+      `relative Immission` = ifelse(n < nmin, NA, `relative Immission`)
     ) |>
     dplyr::select(-nmin)
 

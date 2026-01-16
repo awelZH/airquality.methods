@@ -388,15 +388,19 @@ rf_meteo_normalisation <- function(data, trend_vars, frac_train = 0.8, ntrees = 
   print(imp)
 
   # normalised trend and observations based on yearly interval
+  agg_fun <- function(parameter, value) {
+    switch(parameter,
+           O3_max_h1 = sum(value > 120, na.rm = TRUE),
+           mean(value, na.rm = TRUE)
+    )
+  }
+
   data_y1 <-
     data |>
     dplyr::group_by(year = lubridate::year(date), site, parameter, type) |>
     dplyr::summarise(
       n = sum(!is.na(value)),
-      value = dplyr::case_when(
-        parameter == "O3_max_h1" ~ sum(max(value, na.rm = TRUE) > 120, na.rm = TRUE),
-        TRUE ~ mean(value, na.rm = TRUE)
-      )
+      value = agg_fun(unique(parameter), value)
     ) |>
     dplyr::ungroup() |>
     dplyr::mutate(

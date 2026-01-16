@@ -77,6 +77,7 @@ longpollutant <- function(x) {
     x == "O3_max_98p_m1" ~ "Ozon",
     x == "O3_peakseason_mean_d1_max_mean_h8gl" ~ "Ozon",
     x == "O3_nb_h1>120" ~ "Ozon",
+    x == "O3_nb_d1_max_h1>120" ~ "Ozon",
     x == "N-Eintrag" ~ "Stickstoffeintrag in empfindliche Ökosysteme",
     x == "Ndep" ~ "Stickstoffeintrag in empfindliche Ökosysteme",
     TRUE ~ x
@@ -99,6 +100,7 @@ shortpollutant <- function(x) {
     x == "O3_peakseason_mean_d1_max_mean_h8gl" ~ "O3",
     x == "O3_nb_h1>120" ~ "O3",
     x == "O3_max_h1" ~ "O3",
+    x == "O3_nb_d1_max_h1>120" ~ "O3",
     TRUE ~ x
   )
 
@@ -136,6 +138,7 @@ longmetric <- function(x, interval = "y1") {
       # x == "O3_max_98p_m1" ~ "höchstes monatl. 98%-Perzentil der ½-Stundenmittel",
       # x == "O3_peakseason_mean_d1_max_mean_h8gl" ~ "mittlere sommerliche Tagesbelastung",
       x == "O3_nb_h1>120" ~ "Anzahl Stundenmittel > 120 μg/m3",
+      x == "O3_nb_d1_max_h1>120" ~ "Anzahl Tage höchstes Stundenmittel > 120 μg/m3",
       TRUE ~ x
     )
 
@@ -176,6 +179,7 @@ longparameter <- function(x) {
     x == "O3_max_98p_m1" ~ "max. monatl. 98%-Perz.",
     x == "O3_peakseason_mean_d1_max_mean_h8gl" ~ "Sommersaison",
     x == "O3_max_h1" ~ "höchstes Stundenmittel",
+    x == "O3_nb_d1_max_h1>120" ~ "Anzahl Tage höchstes Stundenmittel > 120 μg/m3",
     TRUE ~ "Jahresmittel"
   )
 
@@ -389,12 +393,16 @@ rf_meteo_normalisation <- function(data, trend_vars, frac_train = 0.8, ntrees = 
     dplyr::group_by(year = lubridate::year(date), site, parameter, type) |>
     dplyr::summarise(
       n = sum(!is.na(value)),
-      value = mean(value, na.rm = TRUE)
+      value = dplyr::case_when(
+        parameter == "O3_max_h1" ~ sum(max(value, na.rm = TRUE) > 120, na.rm = TRUE),
+        TRUE ~ mean(value, na.rm = TRUE)
+      )
     ) |>
     dplyr::ungroup() |>
     dplyr::mutate(
       value = ifelse(is.nan(value), NA, value),
-      value = ifelse(n < 365 * !!coverage, NA, value)
+      value = ifelse(n < 365 * !!coverage, NA, value),
+      parameter = dplyr::recode(parameter, "O3_max_h1" = "O3_nb_d1_max_h1>120")
     )
 
   if (!minimal) {
@@ -431,6 +439,7 @@ rf_meteo_normalisation <- function(data, trend_vars, frac_train = 0.8, ntrees = 
 #'
 #' @param data_trends
 #' @param parameter
+#' @param trend_vars
 #' @param reference_year_fun
 #' @param yearmin_per_site
 #' @param frac_train
@@ -441,8 +450,9 @@ rf_meteo_normalisation <- function(data, trend_vars, frac_train = 0.8, ntrees = 
 #' @param coverage
 #'
 #' @export
-derive_trends_per_parameter <- function(data_trends, parameter, reference_year_fun, yearmin_per_site = 4, frac_train = 0.8, ntrees = 300, nsamples = 300, verbose = TRUE, minimal = TRUE, coverage = 0.8) {
+derive_trends_per_parameter <- function(data_trends, parameter, trend_vars, reference_year_fun, yearmin_per_site = 4, frac_train = 0.8, ntrees = 300, nsamples = 300, verbose = TRUE, minimal = TRUE, coverage = 0.8) {
 
+  # TODO: better function...
   # how many data, reference year included?
   data_trends_agg <-
     data_trends |>

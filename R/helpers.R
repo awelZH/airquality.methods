@@ -70,7 +70,7 @@ longpollutant <- function(x) {
     x == "NHx | NH3" ~ "reduzierter Stickstoff NHx | NH3",
     x == "Nr" ~ "reaktiver Stickstoff",
     x == "CO" ~ "Kohlenstoffmonoxid",
-    x == "SO2" ~ "Schwefeldioxîd",
+    x == "SO2" ~ "Schwefeldioxid",
     x == "NOx" ~ "Stickoxide",
     x == "eBC" ~ "Russ im Feinstaub",
     x == "O3" ~ "Ozon",

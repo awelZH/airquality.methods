@@ -867,7 +867,7 @@ plot_timeseries_trend_relative <- function(data_trends, detailed = FALSE,
 
   plot <-
     plot  +
-    ggplot2::scale_y_continuous(labels = scales::percent_format(), expand = c(0.01,0.01)) +
+    ggplot2::scale_y_continuous(labels = scales::percent_format(), expand = c(0.02,0.02)) +
     ggplot2::scale_color_manual(name = "Grundlage", values = c("Emission" = "gray50", "Median Trend" = "dodgerblue", "Median Messwerte" = "gold3", "Trend pro Standort" = "gray80")) +
     ggplot2::scale_shape_manual(values = c("Median Messwerte" = 21, "Trend pro Standort" = 19)) +
     ggplot2::scale_size_manual(values = c("Median Messwerte" = pt_size, "Trend pro Standort" = pt_size * 0.75)) +

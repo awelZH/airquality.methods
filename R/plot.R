@@ -428,21 +428,17 @@ plot_pars_monitoring_timeseries <- function(data, parameters, cap = "Datenabdeck
 #' @keywords internal
 plot_timeseries_ndep_bars <- function(data, xlim = NULL, xbreaks = waiver(), linewidth = 1, color = "red3", title = "Luftqualitätsmesswerte - Stickstoffeintrag in empfindliche Ökosysteme") {
 
-  cln <-
-    data |>
-    dplyr::distinct(site, ecosystem_category, critical_load_min, critical_load_single, critical_load_max) |>
-    tidyr::gather(cln, deposition, -site, -ecosystem_category) |>
-    dplyr::filter(cln == "critical_load_single") # decided to show only single value, but still keep option for range display
+  cln <- dplyr::distinct(data, site, ecosys, cln)
 
   plot <-
     data |>
     ggplot2::ggplot(ggplot2::aes(x = year, y = deposition, fill = component)) +
     ggplot2::geom_bar(stat = "identity") +
-    ggplot2::geom_hline(data = cln, mapping = ggplot2::aes(yintercept = deposition, linetype = cln, group = site), color = color, linewidth = linewidth, show.legend = FALSE) +
-    ggplot2::scale_linetype_manual(values = c("critical_load_single" = 1, "critical_load_min" = 2, "critical_load_max" = 2)) +
+    ggplot2::geom_hline(data = cln, mapping = ggplot2::aes(yintercept = cln, group = site), color = color, linewidth = linewidth, show.legend = FALSE) +
+    # ggplot2::scale_linetype_manual(values = c("critical_load_single" = 1, "critical_load_min" = 2, "critical_load_max" = 2)) +
     ggplot2::scale_x_continuous(limits = xlim, breaks = xbreaks, expand = c(0.01,0.01)) +
     ggplot2::scale_y_continuous(expand = c(0.01,0.01)) +
-    ggplot2::scale_fill_manual(values = c("aus NH3-Quellen" = "khaki3", "aus NOx-Quellen" = "khaki4")) +
+    ggplot2::scale_fill_manual(values = c("aus NH3-Quellen" = "#2A5676", "aus NOx-Quellen" = "#B696D6")) +
     theme_ts +
     ggplot2::theme(
       strip.text = ggplot2::element_text(hjust = 0),
@@ -451,7 +447,7 @@ plot_timeseries_ndep_bars <- function(data, xlim = NULL, xbreaks = waiver(), lin
     ) +
     ggplot2::ggtitle(
       label = openair::quickText(title),
-      subtitle = expression("Stickstoffeintrag (kgN " * ha^-1 * Jahr^-1 * ")")
+      subtitle = expression("Stickstoffeintrag (kg-N " * ha^-1 * Jahr^-1 * ")")
     )
 
   return(plot)

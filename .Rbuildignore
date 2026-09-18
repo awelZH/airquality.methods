@@ -3,3 +3,11 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^\.claude$
+^agents$
+^commands$
+^contexts$
+^rules$
+^to-do\.md$
+^CLAUDE\.md$
+^LICENSE\.md$
+^_dependencies\.R$

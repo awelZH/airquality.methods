@@ -1,0 +1,253 @@
+---
+title: "Reading geodata from data.geo.admin.ch"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Reading geodata from data.geo.admin.ch}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+Every chunk below talks to the STAC API of data.geo.admin.ch, so nothing is
+evaluated when the vignette is built. Run it interactively; downloads are cached
+under `geo_admin_cache_dir()`, so a second run is offline.
+
+```{r}
+#| eval: true
+#| message: false
+library(airquality.methods)
+library(dplyr)
+library(stars)
+```
+
+## The shape of the problem
+
+Air quality exposure combines datasets that do not agree on anything:
+
+| Dataset | Resolution | Years | Quantity |
+|---|---|---|---|
+| STATPOP inhabitants | 100 m | 2010– | count |
+| NO2, PM10, O3 | varies, higher from 2020 | 1990– | concentration |
+| PM2.5 | as above | 2015– | concentration |
+| Nitrogen deposition | 500 m | 1990, 2000, 2005, 2010, 2015, 2020 | rate |
+
+Different grids, different years, and quantities that must not be resampled the
+same way. The workflow below keeps each of those differences explicit.
+
+## 1. Read, in the original resolution
+
+`read_geo_admin()` queries the assets of each collection, resolves the file
+hierarchy down to one file per year, and reads it. Nothing is resampled yet.
+
+```{r}
+collections <- c(
+  "ch.bfs.statistik-bevoelkerung_haushalte",
+  "ch.bafu.luftreinhaltung-feinstaub_pm2_5",
+  "ch.bafu.luftreinhaltung-stickstoffdeposition"
+)
+
+data <- read_geo_admin(collections, years = 2015:2025)
+data |> select(label, year, format, grid, noloc_subtracted)
+```
+
+The result is one row per collection and year, with the raster in a `stars` list
+column and its provenance beside it: `item`, `href`, `format`, `grid`, `res_x`,
+`res_y`. Filtering, joining and selecting are plain dplyr from here on.
+
+Years that a collection does not offer are reported rather than silently
+dropped — nitrogen deposition has six model years, not eleven.
+
+### Looking at one collection first
+
+When a collection is new or its file layout is unclear, go one level down:
+
+```{r}
+assets <- get_geo_admin_assets("ch.bafu.luftreinhaltung-feinstaub_pm2_5")
+count(assets, year, format)
+
+# which file would be chosen per year, and why
+resolve_assets(assets, formats = "tif", years = 2020:2024)
+```
+
+## 2. Stack into cubes, losslessly
+
+```{r}
+stack_years(data) |> select(label, grid, years)
+```
+
+A `stars` cube has exactly one resolution per dimension, so this yields one cube
+per collection *and grid*. If a collection changed resolution between years you
+get several cubes — which is the honest answer, not a defect.
+
+## 3. Normalise onto a common grid
+
+Two ways, depending on what the analysis is anchored to.
+
+### 3a. Onto the grid of a reference collection
+
+```{r}
+aligned <- align_to_reference(data)
+```
+
+For each year of the reference (STATPOP by default) its own raster becomes the
+template. The reference is never resampled; everything else is brought onto it.
+
+### 3b. Onto a grid you choose
+
+```{r}
+grid_250 <- make_reference_grid(bbox_zh_lv95, cellsize = 250)
+normalized <- align_to_grid(data, grid_250)
+
+# or an existing raster as the template:
+# align_to_grid(data, "path/to/reference.tif")
+```
+
+### How each quantity is resampled
+
+Declared once per collection in `geo_admin_specs()`:
+
+* **`"sum"`** for counts — inhabitants. The total survives coarsening *and*
+  refining.
+* **`"average"`** for concentrations and rates — area-weighted.
+
+Summing a concentration or averaging a population would both be wrong, so the
+choice is part of the collection description rather than a call-site argument.
+
+`sources` records what happened, per year and attribute:
+
+```{r}
+normalized$sources[[1]]
+```
+
+`total_source` and `total_aligned` show the population total before and after
+resampling. They differ only where the target grid is smaller than the data that
+was read — which is exactly when you want to know.
+
+### Filling the years between model years
+
+Nitrogen deposition exists for 1990, 2000, 2005, 2010, 2015, 2020. To place it
+on an annual axis, say so explicitly:
+
+```{r}
+normalized_filled <- align_to_grid(
+  data, grid_250,
+  years = 2015:2025,
+  year_match = c("ch.bafu.luftreinhaltung-stickstoffdeposition" = "linear"),
+  max_year_diff = 5
+)
+```
+
+`year_match` is `"exact"` by default: no data of a different year sneaks in
+unannounced. `"nearest"` takes the closest year, `"linear"` interpolates between
+the years either side. Neither ever extrapolates — beyond the ends of the series
+the nearest year is carried, and `sources` says so.
+
+```{r}
+# nitrogen deposition alone, as an annual series on its own 500 m grid
+n_dep <- read_geo_admin("ch.bafu.luftreinhaltung-stickstoffdeposition")
+n_dep_annual <- align_to_grid(
+  n_dep, grid = n_dep$stars[[1]], years = 2000:2020, year_match = "linear"
+)
+n_dep_annual$sources[[3]] # 2002: 60 % of 2000, 40 % of 2005
+```
+
+## 4. One cube
+
+```{r}
+cube <- stack_years(normalized)$cube[[1]]
+cube
+```
+
+Dimensions `x`, `y`, `year`; attributes `BBTOT`, `pm2_5`, `n_deposition`.
+
+## 5. Evaluate
+
+### On the cube directly
+
+Cell-wise across attributes, all years at once:
+
+```{r}
+exposure <- cube |>
+  mutate(
+    pm2_5_exposure = pm2_5 * BBTOT,               # inhabitants x µg/m³
+    above_10       = pm2_5 > 10,
+    pop_above_10   = ifelse(pm2_5 > 10, BBTOT, 0)
+  ) |>
+  select(BBTOT, pm2_5_exposure, above_10, pop_above_10)
+
+slice(cube, year, 1)          # one year by index
+cube |> filter(year >= 2020)  # by value; needs the cubelyr package
+
+years <- st_get_dimension_values(cube, "year")
+change <- slice(cube, year, length(years)) - slice(cube, year, 1)
+plot(change["pm2_5"])
+```
+
+### Reducing over dimensions
+
+```{r}
+st_apply(cube["pm2_5"], c("x", "y"), mean, na.rm = TRUE) # per cell, over years
+st_apply(cube["BBTOT"], "year", sum, na.rm = TRUE)       # per year, over the extent
+
+# per municipality, with sf polygons
+# aggregate(cube["BBTOT"], by = municipalities, FUN = sum, na.rm = TRUE)
+```
+
+### The full dplyr vocabulary, via the long table
+
+```{r}
+cube_tbl <- as_tibble(cube) # x, y (cell centres), year, and the attributes
+
+cube_tbl |>
+  filter(!is.na(BBTOT), !is.na(pm2_5)) |>
+  summarise(
+    pop               = sum(BBTOT),
+    pm2_5_popweighted = weighted.mean(pm2_5, BBTOT),
+    share_above_10    = sum(BBTOT[pm2_5 > 10]) / pop,
+    .by = year
+  )
+```
+
+`tibble_to_cube()` is the way back. It matches cells by the template's
+coordinates, so rows removed by a `filter()` simply become `NA`, and the crs,
+the grid and years-as-instants are preserved:
+
+```{r}
+pm2_5_change <- cube_tbl |>
+  arrange(year) |>
+  mutate(pm2_5_change = pm2_5 - lag(pm2_5), .by = c(x, y)) |>
+  select(x, y, year, pm2_5_change) |>
+  tibble_to_cube(cube)
+
+# a summary per cell drops the year dimension and yields a 2D cube
+cell_summary <- cube_tbl |>
+  filter(!is.na(pm2_5)) |>
+  summarise(pm2_5_mean = mean(pm2_5), n_years = n(), .by = c(x, y)) |>
+  tibble_to_cube(cube)
+```
+
+## Adding a collection
+
+Unknown collections fall back to the generic raster reader, which usually works.
+To pin down the file to pick, the attribute name and the resampling method, add a
+spec:
+
+```{r}
+specs <- c(
+  geo_admin_specs(),
+  list("ch.example.collection" = collection_spec(
+    read_collection_rasters,
+    label      = "example",
+    resampling = "average",
+    name       = "example",
+    formats    = "tif",
+    pattern    = "_(19|20)\\d{2}_2056\\.tif$"
+  ))
+)
+
+read_geo_admin("ch.example.collection", specs = specs)
+```

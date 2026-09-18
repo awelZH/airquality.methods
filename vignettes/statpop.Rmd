@@ -1,0 +1,166 @@
+---
+title: "STATPOP: the hectare grid and its collector pixels"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{STATPOP: the hectare grid and its collector pixels}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+```{r}
+#| message: false
+library(airquality.methods)
+library(dplyr)
+```
+
+BFS publishes the resident population per hectare as part of the STAC collection
+`ch.bfs.statistik-bevoelkerung_haushalte`. Two details decide whether the numbers
+that come out are right.
+
+## Detail 1: the coordinates mark the corner, not the centre
+
+A STATPOP row carries `E_KOORD` / `N_KOORD` for the **lower left corner** of its
+cell. Treating those as cell centres shifts the whole population half a cell
+south-west — 50 m, which is enough to move people across a municipal boundary.
+
+`table_to_stars()` takes the reference point as an argument and, more usefully,
+refuses to guess: it checks that every coordinate really lies on the grid.
+
+```{r}
+cells <- tibble(
+  E_KOORD = c(2600000, 2600100, 2600200),
+  N_KOORD = c(1200000, 1200000, 1200000),
+  BBTOT   = c(10, 20, 30)
+)
+
+raster <- table_to_stars(cells, variables = "BBTOT", cellsize = 100)
+sf::st_bbox(raster)
+```
+
+The extent starts exactly at the first corner and ends one cell beyond the last.
+Feed it something off the grid and it says so instead of snapping:
+
+```{r}
+#| error: true
+table_to_stars(
+  tibble(E_KOORD = c(2600000, 2600042), N_KOORD = 1200000, BBTOT = c(1, 2)),
+  variables = "BBTOT", cellsize = 100
+)
+```
+
+## Detail 2: the collector pixels
+
+Every municipality has one cell that absorbs the inhabitants who cannot be
+located. Left in place, those people sit at a single arbitrary coordinate and get
+assigned whatever pollutant concentration happens to be there — a small number of
+cells with implausibly high population and an exposure that means nothing.
+
+BFS ships them separately (`_noloc_`), and `subtract_noloc()` removes them from
+the cell they were added to, logging every one:
+
+```{r}
+population <- tibble(
+  E_KOORD = rep(c(2600000, 2600100), each = 2),
+  N_KOORD = rep(c(1200000, 1200100), times = 2),
+  BBTOT   = c(10, 20, 30, 40)
+) |>
+  table_to_stars(variables = "BBTOT", cellsize = 100)
+
+noloc <- tibble(E_KOORD = 2600100, N_KOORD = 1200000, BBTOT = 5)
+
+corrected <- subtract_noloc(population, noloc)
+corrected$noloc
+```
+
+```{r}
+sum(population$BBTOT, na.rm = TRUE)         # before
+sum(corrected$stars$BBTOT, na.rm = TRUE)    # after
+```
+
+### The four outcomes
+
+The log names what happened, per pixel:
+
+| status | meaning |
+|---|---|
+| `subtracted` | removed in full |
+| `exceeds_cell` | more to remove than the cell held; the cell went to 0 |
+| `cell_missing` | the cell is empty (`NA`); nothing removed |
+| `outside_extent` | the pixel lies outside the bbox; nothing removed |
+
+The last one is routine, not an error: cropping to the Canton of Zurich leaves
+the collector pixels of every other canton outside. They are still counted, so
+the books balance:
+
+```
+sum(noloc file) = noloc_subtracted + noloc_unmatched
+```
+
+The first three warn, because they mean the correction did not fully apply.
+
+## Reading a year
+
+```{r}
+#| eval: false
+assets  <- get_geo_admin_assets("ch.bfs.statistik-bevoelkerung_haushalte")
+statpop <- read_statpop_ha(assets, years = 2015:2025)
+
+statpop |> select(year, format, noloc_subtracted, noloc_unmatched)
+statpop$noloc[[1]] # the per-pixel log
+```
+
+The file hierarchy is resolved automatically: `_ha_` selects the hectare grid
+over the municipality table, parquet is preferred over csv, and EPSG 2056 over
+the rest.
+
+### Checking the result
+
+Localised plus non-localised inhabitants should reproduce the published
+population of the extent:
+
+```{r}
+#| eval: false
+statpop |>
+  mutate(
+    in_raster = purrr::map_dbl(stars, \(s) sum(s$BBTOT, na.rm = TRUE)),
+    total     = in_raster + noloc_subtracted
+  ) |>
+  select(year, in_raster, noloc_subtracted, total)
+```
+
+## Reading more than the headcount
+
+The hectare grid holds far more than `BBTOT` — age classes (`BBM*`, `BBW*`),
+household types (`HP*`), nationality and civil status groups. Name them, and mind
+the memory: Switzerland at 100 m is about 8 million cells per variable.
+
+```{r}
+#| eval: false
+read_statpop_ha(
+  assets,
+  years     = 2024,
+  variables = c("BBTOT", "BB11", "BB12"),
+  bbox      = bbox_zh_lv95
+)
+```
+
+Only `noloc_variable` (`BBTOT` by default) is corrected for collector pixels;
+the other variables come through as published, and you are told so.
+
+## Switching the correction off
+
+Sometimes the uncorrected raster is what is wanted, for a comparison against
+published figures:
+
+```{r}
+#| eval: false
+read_statpop_ha(assets, years = 2024, correct_noloc = FALSE)
+```
+
+The `noloc_*` columns are then `NA` rather than 0, so a corrected and an
+uncorrected result can never be confused with one another.

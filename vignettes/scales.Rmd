@@ -1,0 +1,136 @@
+---
+title: "Colour scales for air quality figures"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Colour scales for air quality figures}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6, fig.height = 4)
+```
+
+```{r}
+#| message: false
+library(airquality.methods)
+library(ggplot2)
+```
+
+## The problem with limits
+
+A concentration map needs fixed limits: the same pollutant must look the same
+across years and municipalities, or the colours say nothing. But fixed limits
+mean some values fall outside them, and ggplot2's default answer is to turn those
+cells into `NA` — holes in the map, exactly where the pollution is worst.
+
+`scale_capped()` squishes out-of-range values onto the edge colour instead, marks
+that in the legend with "≤"/"≥", and draws the true data extremes as whiskers
+beyond the colour bar. Nothing is hidden and nothing is lost.
+
+```{r}
+d <- data.frame(expand.grid(x = 1:20, y = 1:20))
+d$value <- as.vector(outer(1:20, 1:20, \(a, b) a * b / 4))
+
+ggplot(d, aes(x, y, fill = value)) +
+  geom_raster() +
+  scale_fill_capped(limits = c(10, 60), name = "value") +
+  theme_custom("map")
+```
+
+The legend shows `≥ 60` and a whisker at the real maximum, so a reader can see
+both the classification and what it cost.
+
+## Pollutant scales
+
+`immissionscale()` supplies the limits, breaks and legend title agreed for each
+parameter, so figures are comparable by construction.
+
+```{r}
+immissionscale_parameters()
+```
+
+```{r}
+#| fig.height: 3
+pm <- data.frame(expand.grid(x = 1:30, y = 1:10))
+pm$value <- seq(0, 25, length.out = nrow(pm))
+
+ggplot(pm, aes(x, y, fill = value)) +
+  geom_raster() +
+  immissionscale("PM2.5") +
+  coord_equal() +
+  theme_custom("map")
+```
+
+Concentrations use the 18-step official ramp; nitrogen (`NH3`, `Ndep`) uses a
+reversed magma ramp, where dark means high.
+
+## Choosing limits from the data
+
+When sensible limits are not known in advance, let quantiles set them — the
+capping then trims the tail instead of the colour ramp being dictated by a single
+outlier:
+
+```{r}
+ggplot(d, aes(x, y, fill = value)) +
+  geom_raster() +
+  scale_fill_capped(probs = 0.02, name = "value") +
+  theme_custom("map")
+```
+
+`probs = 0.02` is shorthand for `c(0.02, 0.98)`. `probs = c(NA, 0.98)` caps only
+the upper end.
+
+## Classed maps
+
+For figures that report classes rather than a continuum:
+
+```{r}
+ggplot(d, aes(x, y, fill = value)) +
+  geom_raster() +
+  scale_fill_capped_b(limits = c(10, 60), breaks = seq(10, 60, 10), name = "value") +
+  theme_custom("map")
+```
+
+`scale_colour_capped()` and the `_b` / `_d` variants cover the colour aesthetic
+and the binned and discrete scale types.
+
+## Turning the capping off
+
+Passing a different `oob` makes it an ordinary scale again — cap symbols and
+whiskers then disappear on their own, because there is no edge class left to
+mark:
+
+```{r}
+#| fig.height: 3
+ggplot(d, aes(x, y, fill = value)) +
+  geom_raster() +
+  scale_fill_capped(limits = c(10, 60), oob = scales::oob_censor, name = "value") +
+  theme_custom("map")
+```
+
+## Themes
+
+`theme_custom()` strips what a figure type does not need:
+
+```{r}
+#| fig.height: 3
+ggplot(economics, aes(date, unemploy)) +
+  geom_line() +
+  theme_custom("timeseries")
+```
+
+`"timeseries"`, `"scatter"`, `"flipped"`, `"map"` and `"default"`.
+`theme_legend_inside()` moves the legend into the panel, which maps usually have
+room for:
+
+```{r}
+#| fig.height: 3
+ggplot(pm, aes(x, y, fill = value)) +
+  geom_raster() +
+  immissionscale("PM2.5") +
+  coord_equal() +
+  theme_custom("map") +
+  theme_legend_inside()
+```

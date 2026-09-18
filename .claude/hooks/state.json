@@ -1,0 +1,12 @@
+{
+  "disabled": [],
+  "_comment": "Add hook names to 'disabled' to persistently disable them for this project.",
+  "_available": [
+    "doc-blocker",
+    "git-push-warn",
+    "suggest-compact",
+    "session-start",
+    "session-end",
+    "pre-compact"
+  ]
+}

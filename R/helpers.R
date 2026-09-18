@@ -1,4 +1,26 @@
 
+# function to install / load packages
+load_packages <- function(packages) {
+
+  for (package in packages) {
+    if (!require(package, character.only = TRUE, quietly = TRUE)) {
+      if (package %in% c("rOstluft", "rOstluft.plot", "rOstluft.data")) {
+        renv::install(paste0("Ostluft/",package), prompt = FALSE)
+      } else if (package %in% c("airquality.methods", "airquality.data")) {
+        renv::install(paste0("awelZH/",package), prompt = FALSE)
+      } else if (package == "healthiar") {
+        renv::install(paste0("SwissTPH/",package), prompt = FALSE)
+      } else {
+        renv::install(package)
+      }
+    }
+    library(package, character.only = TRUE)
+  }
+
+}
+
+
+
 #' Get entry from ressources.csv by internal id
 #'
 #' @param ressources

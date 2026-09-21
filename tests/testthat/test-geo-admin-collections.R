@@ -108,3 +108,18 @@ test_that("read_geo_admin returns a typed empty tibble when nothing is found", {
   expect_type(out$year, "integer")
   expect_equal(nrow(dplyr::filter(out, .data$year > 2000)), 0)
 })
+
+test_that("read_collection_rasters says where each year is read from", {
+  local_mocked_bindings(
+    read_asset_stars = function(asset, ...) stars::st_as_stars(matrix(1, 1, 1))
+  )
+  assets <- tibble::tibble(
+    collection = "ch.test", item = "ch.test-2020", year = 2020L,
+    asset = "a.tif", format = "tif", href = "https://x/a.tif", compression = NA_character_
+  )
+
+  expect_message(
+    read_collection_rasters(assets, years = 2020, bbox = NULL),
+    "ch.test-2020.*streamed from the web"
+  )
+})

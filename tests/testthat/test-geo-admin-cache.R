@@ -183,3 +183,55 @@ test_that("download_geo_admin_asset strips query strings from the cache path", {
 
   expect_equal(out, file.path(cache, "ch.test/data.csv"))
 })
+
+test_that("asset_cache_path mirrors the server path without query strings", {
+  asset <- make_asset("https://data.geo.admin.ch/ch.test/2020/data.csv?token=secret")
+
+  expect_equal(asset_cache_path(asset, "cache"), file.path("cache", "ch.test/2020/data.csv"))
+})
+
+test_that("asset_source streams uncompressed GeoTIFFs", {
+  cache <- withr::local_tempdir()
+  asset <- make_asset("https://data.geo.admin.ch/ch.test/data.tif", format = "tif")
+  asset$compression <- NA_character_
+
+  expect_equal(asset_source(asset, cache), "stream")
+})
+
+test_that("asset_source reports a download for files not yet cached", {
+  cache <- withr::local_tempdir()
+  csv <- make_asset("https://data.geo.admin.ch/ch.test/data.csv")
+  zipped_tif <- make_asset("https://data.geo.admin.ch/ch.test/data.tif.zip", format = "tif")
+  zipped_tif$compression <- "zip"
+
+  expect_equal(asset_source(csv, cache), "download")
+  expect_equal(asset_source(zipped_tif, cache), "download")
+})
+
+test_that("asset_source reports the cache for files already cached", {
+  cache <- withr::local_tempdir()
+  asset <- make_asset("https://data.geo.admin.ch/ch.test/data.csv")
+  dest <- file.path(cache, "ch.test/data.csv")
+  dir.create(dirname(dest), recursive = TRUE)
+  writeLines("a;b", dest)
+
+  expect_equal(asset_source(asset, cache), "cache")
+})
+
+test_that("inform_reading names the item, the format and the source", {
+  cache <- withr::local_tempdir()
+  asset <- make_asset("https://data.geo.admin.ch/ch.test/data.tif", format = "tif")
+  asset$item <- "ch.test-2020"
+  asset$compression <- NA_character_
+
+  expect_message(inform_reading(asset, cache), "ch.test-2020.*tif, streamed from the web")
+
+  asset <- make_asset("https://data.geo.admin.ch/ch.test/data.csv")
+  asset$item <- "ch.test-2020"
+  expect_message(inform_reading(asset, cache), "csv, downloading")
+
+  dest <- file.path(cache, "ch.test/data.csv")
+  dir.create(dirname(dest), recursive = TRUE)
+  writeLines("a;b", dest)
+  expect_message(inform_reading(asset, cache), "csv, from cache")
+})

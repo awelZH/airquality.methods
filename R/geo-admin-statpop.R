@@ -125,7 +125,7 @@ subtract_noloc <- function(x,
 #' @keywords internal
 read_statpop_item <- function(ha_asset, noloc_assets, variables, bbox, noloc_variable,
                               year_col, coords, anchor, correct_noloc, crs, cache_dir, ...) {
-  cli::cli_inform("Reading {.val {ha_asset$item}} ({ha_asset$format}).")
+  inform_reading(ha_asset, cache_dir)
   raster <- read_asset_stars(
     ha_asset,
     variables = variables, bbox = bbox, coords = coords, anchor = anchor,

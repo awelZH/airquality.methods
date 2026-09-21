@@ -101,6 +101,63 @@ fetch_to_file <- function(href, path, max_tries = 5) {
   invisible(path)
 }
 
+#' Cache path of an asset
+#'
+#' The server's path structure is mirrored inside the cache directory; query
+#' strings and fragments are dropped.
+#'
+#' @param asset A single row from [get_geo_admin_assets()].
+#' @param cache_dir Cache directory.
+#'
+#' @return Local path, whether or not the file exists.
+#'
+#' @keywords internal
+asset_cache_path <- function(asset, cache_dir) {
+  relative_path <- asset$href |>
+    stringr::str_remove("[?#].*$") |>
+    stringr::str_remove("^https?://[^/]+/")
+
+  file.path(cache_dir, relative_path)
+}
+
+#' Where an asset will be read from
+#'
+#' Uncompressed GeoTIFFs are streamed through `/vsicurl/` and never cached (see
+#' [read_tif_stars()]); everything else is read from the cache, after a download
+#' if the file is not there yet. Only the existence of the cached file is
+#' checked, not its checksum, so a corrupt entry reports `"cache"` and is then
+#' downloaded again by [download_geo_admin_asset()] with its own message.
+#'
+#' @inheritParams asset_cache_path
+#'
+#' @return `"stream"`, `"cache"` or `"download"`.
+#'
+#' @keywords internal
+asset_source <- function(asset, cache_dir) {
+  compression <- asset[["compression"]] %||% NA_character_
+  if (asset$format == "tif" && is.na(compression)) {
+    return("stream")
+  }
+
+  if (file.exists(asset_cache_path(asset, cache_dir))) "cache" else "download"
+}
+
+#' Announce the reading of an asset
+#'
+#' @inheritParams asset_cache_path
+#'
+#' @return `NULL`, invisibly; called for the message.
+#'
+#' @keywords internal
+inform_reading <- function(asset, cache_dir) {
+  source <- switch(asset_source(asset, cache_dir),
+    stream   = "streamed from the web",
+    cache    = "from cache",
+    download = "downloading"
+  )
+  cli::cli_inform("Reading {.val {asset$item}} ({asset$format}, {source}).")
+}
+
 #' Download an asset and cache it locally
 #'
 #' Existing files are reused as long as their checksum matches. The download
@@ -119,11 +176,7 @@ download_geo_admin_asset <- function(asset, cache_dir = geo_admin_cache_dir(), o
   asset <- check_single_asset(asset)
   href <- asset$href
   checksum <- asset_checksum(asset)
-
-  relative_path <- href |>
-    stringr::str_remove("[?#].*$") |>
-    stringr::str_remove("^https?://[^/]+/")
-  dest <- file.path(cache_dir, relative_path)
+  dest <- asset_cache_path(asset, cache_dir)
 
   if (overwrite || !file.exists(dest) || !checksum_matches(dest, checksum)) {
     dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)

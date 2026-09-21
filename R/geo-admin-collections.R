@@ -177,7 +177,7 @@ read_collection_rasters <- function(assets,
   rows <- resolved |>
     vctrs::vec_chop() |>
     purrr::map(\(asset) {
-      cli::cli_inform("Reading {.val {asset$item}} ({asset$format}).")
+      inform_reading(asset, cache_dir)
       x <- read_asset_stars(
         asset,
         variables = variables, bbox = bbox, crs = epsg, cache_dir = cache_dir, ...

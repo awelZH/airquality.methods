@@ -174,6 +174,15 @@ Not reproducible here, because the analysis repo derives them rather than readin
 That last point also settles whether the rewrite was optional: the old STATPOP path is dead against
 today's API for every year before 2023.
 
+**Correction from the `airquality` regression (same day, `airquality/tests/regression/`):** the
+0.6 pp are *not* a data-vintage effect. The old `merge_statpop_with_subareas()` in `airquality`
+joined municipality names by `bfs` onto the cells, and the geolion map has several features for some
+`bfs` numbers (exclaves of Glattfelden and Mönchaltorf, three `bfs = 0` features: lakes, Kloster
+Fahr), so those cells were counted two or three times. Emulating that double counting with
+`correct_noloc = FALSE` reproduces the published population exactly for 2020–2024 (+0.04 % for
+2010–2019, explained by border cells). The collector pixel correction accounts for ≈ 0.43 pp. The
+bug is fixed in `airquality`.
+
 ## Behavioural differences, ranked by effect
 
 1. **Collector pixels are removed** from the population raster (`subtract_noloc()`). The old pipeline
@@ -231,11 +240,9 @@ caught this because the suite always calls something `stars::` first.
 
 ## Open items in neighbouring repos
 
-* **`airquality`:** 11 calls in `scripts/` still carry the `airquality.methods::` prefix for
-  functions that now live locally in `airquality/R/helpers.R` — `_compile_emission_data.R` (5×),
-  `_plot_airquality.R` (3×), `_compile_exposition_data.R` (2×, incl. `get_years`),
-  `_compile_outcomes.R`, `_compile_trend_data.R`, `_derive_o3_peak-season_rasterdata.R`,
-  `_derive_pm25_rasterdata.R`. Only the prefix needs removing; those scripts are broken until then.
+* **`airquality`:** done 2026-09-18 – obsolete prefixes removed, exposition switched to
+  `read_geo_admin()`/`align_to_reference()`, no deprecated wrapper is called any more. It uses 0.4.0
+  from a local renv install until 0.4.0 is pushed.
 * **`ufp25`:** `scale_capped` now exists in both packages. `ufp25` should import it from
   `airquality.methods` (`R/polar_raster.R`, `R/polar_raster_plot.R` use it) and drop its own copy.
 * `to-do.md` flags further `ufp25` functions worth integrating.

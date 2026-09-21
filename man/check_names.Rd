@@ -4,14 +4,23 @@
 \alias{check_names}
 \title{Check that all required names are present}
 \usage{
-check_names(available, required, what = "the data", call = rlang::caller_env())
+check_names(
+  available,
+  required,
+  what = "the data",
+  class = NULL,
+  call = rlang::caller_env()
+)
 }
 \arguments{
-\item{available}{Names found in the object.}
+\item{available}{Names found in the object, e.g. \code{names(data)}.}
 
 \item{required}{Names the object must have.}
 
 \item{what}{Short description of the object, used in the message.}
+
+\item{class}{Additional class of the error condition, so that callers can
+catch or test input errors specifically; \code{NULL} for none.}
 
 \item{call}{Environment used for the error call, see \code{\link[rlang:caller_env]{rlang::caller_env()}}.}
 }
@@ -20,6 +29,11 @@ check_names(available, required, what = "the data", call = rlang::caller_env())
 }
 \description{
 Validation at the function boundary: fails with the missing names and, as a
-hint, the names that are actually available.
+hint, the names that are actually available. Useful for inputs from online
+sources, whose structure can change between two runs of an analysis.
 }
-\keyword{internal}
+\examples{
+check_names(names(mtcars), c("mpg", "cyl"), "mtcars")
+try(check_names(names(mtcars), "speed", "mtcars", class = "my_input_error"))
+
+}

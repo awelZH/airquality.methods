@@ -39,6 +39,7 @@ Suggests:
     arrow (>= 14.0.0),
     covr,
     knitr,
+    legendry (>= 0.2.0),
     rmarkdown,
     roxygen2,
     testthat (>= 3.0.0)

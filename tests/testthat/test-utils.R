@@ -34,3 +34,26 @@ test_that("round_off is symmetric around zero", {
 test_that("round_off propagates NA", {
   expect_equal(round_off(c(1.5, NA, 2.5)), c(2, NA, 3))
 })
+
+test_that("check_names signals errors of the given class", {
+  expect_error(check_names(c("a", "b"), "x", class = "my_input_error"), class = "my_input_error")
+  expect_error(check_names(c("a", "b"), "x", what = "the test data"), "the test data")
+})
+
+test_that("write_local_csv creates missing directories", {
+  dir <- withr::local_tempdir()
+  file <- file.path(dir, "sub", "folder", "out.csv")
+
+  write_local_csv(tibble::tibble(a = 1), file)
+
+  expect_equal(readLines(file), c("a", "1"))
+})
+
+test_that("write_local_csv appends without header, but writes one when the file is new", {
+  file <- withr::local_tempfile(fileext = ".csv")
+
+  write_local_csv(tibble::tibble(run = "a", value = 1), file, append = TRUE)
+  write_local_csv(tibble::tibble(run = "b", value = 2), file, append = TRUE)
+
+  expect_equal(readLines(file), c("run;value", "a;1", "b;2"))
+})

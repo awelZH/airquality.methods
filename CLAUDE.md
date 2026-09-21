@@ -31,7 +31,9 @@ Layout of `R/`:
 | `aggregate.R` | `aggregate_groups()` |
 | `scale-capped*.R` | capped ggplot2 colour scales (moved from `ufp25`) |
 | `scales.R`, `theme.R` | pollutant scales and figure themes |
-| `utils.R` | `check_names()`, `round_off()`, `write_local_csv()` |
+| `legend-grouped.R` | `grouped_key()`, `add_grouped_legend()`: one legend block per group (`legendry`, Suggests) |
+| `municipalities.R` | geolion municipality map: `drop_foreign_enclaves()`, `assign_municipalities()`; STATPOP collector pixels back to their municipality: `noloc_from_aligned()`, `redistribute_noloc()` |
+| `utils.R` | `check_names()` (exported, optional error `class`), `round_off()`, `write_local_csv()` (creates directories; appending to a new file writes the header) |
 | `deprecated.R` | wrappers keeping `airquality` running during migration |
 
 Vignettes: `geodata` (the whole chain), `statpop` (hectare grid and collector pixels), `scales`
@@ -112,7 +114,9 @@ so the cache logic (checksums, `.part` files, reuse) can be tested without a net
 ## Scope decisions (deliberate, not technical limits)
 
 * **No analysis logic, no reports, no data.** Exposure distributions, health outcomes, emission
-  cadastre preparation and all plotting of concrete figures live in `airquality`.
+  cadastre preparation and all plotting of concrete figures live in `airquality`. Building blocks
+  that any analysis of the canton's grid data needs (municipality assignment, collector pixel
+  redistribution, grouped legend) are not analysis logic and live here (user decision 2026-09-21).
 * **Raster only, for now.** The geodata stack reads GeoTIFF/COG and hectare tables (parquet, csv).
   Vector data stays with `sf::read_sf()` and the geolion WFS reader.
 * **Cantonal default, national capability.** `bbox_zh_lv95` is the default extent; every function
@@ -133,6 +137,10 @@ so the cache logic (checksums, `.part` files, reuse) can be tested without a net
 | `average_to_grid()`, `average_to_statpop()` (in `airquality`) | `align_to_reference()`, `align_to_grid()` |
 | `combine_raster_aq()`, `bafu_rasterlist_to_tibble()` (in `airquality`) | `stack_years()`, `as_tibble(cube)` |
 | `rOstluft.plot::scale_fill_*_squished()` | `scale_fill_capped()` |
+| `grouped_key()`, `add_grouped_legend()` (in `airquality`, 2026-09-21) | same names, unchanged |
+| `drop_foreign_enclaves()`, `assign_municipalities()`, `noloc_from_aligned()`, `redistribute_noloc()` (in `airquality`, 2026-09-21) | same names, unchanged; the collector pixel correction (subtract in `read_statpop_ha()`, give back in `redistribute_noloc()`) now lives in one package |
+| `check_columns()` (in `airquality`, 2026-09-21) | `check_names(names(data), required, what, class = )`; `airquality` keeps a one-line wrapper for its error class |
+| `append_log()` (in `airquality`, 2026-09-21) | `write_local_csv(append = TRUE)` |
 
 Deprecated wrappers still return the **old** shapes, so `airquality` runs unchanged and emits
 deprecation warnings. Two behavioural differences to know about:

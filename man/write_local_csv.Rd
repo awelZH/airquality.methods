@@ -22,5 +22,8 @@ write_local_csv(data, file, delim = ";", na = "NA", append = FALSE)
 }
 \description{
 Thin wrapper around \code{\link[readr:write_delim]{readr::write_delim()}} with the defaults used for the
-compiled output datasets (semicolon separated).
+compiled output datasets (semicolon separated). Missing directories are
+created. With \code{append = TRUE} the rows are added without a header, unless
+the file does not exist yet: then it is created with a header, so a log
+file can be written by always appending.
 }

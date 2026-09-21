@@ -3,17 +3,24 @@
 #' Check that all required names are present
 #'
 #' Validation at the function boundary: fails with the missing names and, as a
-#' hint, the names that are actually available.
+#' hint, the names that are actually available. Useful for inputs from online
+#' sources, whose structure can change between two runs of an analysis.
 #'
-#' @param available Names found in the object.
+#' @param available Names found in the object, e.g. `names(data)`.
 #' @param required Names the object must have.
 #' @param what Short description of the object, used in the message.
+#' @param class Additional class of the error condition, so that callers can
+#'   catch or test input errors specifically; `NULL` for none.
 #' @param call Environment used for the error call, see [rlang::caller_env()].
 #'
 #' @return `TRUE`, invisibly. Aborts if names are missing.
 #'
-#' @keywords internal
-check_names <- function(available, required, what = "the data", call = rlang::caller_env()) {
+#' @examples
+#' check_names(names(mtcars), c("mpg", "cyl"), "mtcars")
+#' try(check_names(names(mtcars), "speed", "mtcars", class = "my_input_error"))
+#'
+#' @export
+check_names <- function(available, required, what = "the data", class = NULL, call = rlang::caller_env()) {
   missing <- setdiff(required, available)
 
   if (length(missing) > 0) {
@@ -22,6 +29,7 @@ check_names <- function(available, required, what = "the data", call = rlang::ca
         "x" = "{cli::qty(length(missing))}Column{?s} {.val {missing}} {?is/are} missing from {what}.",
         "i" = "Available: {.val {available}}"
       ),
+      class = class,
       call = call
     )
   }
@@ -66,7 +74,10 @@ round_off <- function(x, digits = 0) {
 #' Write a delimited text file
 #'
 #' Thin wrapper around [readr::write_delim()] with the defaults used for the
-#' compiled output datasets (semicolon separated).
+#' compiled output datasets (semicolon separated). Missing directories are
+#' created. With `append = TRUE` the rows are added without a header, unless
+#' the file does not exist yet: then it is created with a header, so a log
+#' file can be written by always appending.
 #'
 #' @param data Data frame to write.
 #' @param file Target path.
@@ -78,7 +89,9 @@ round_off <- function(x, digits = 0) {
 #'
 #' @export
 write_local_csv <- function(data, file, delim = ";", na = "NA", append = FALSE) {
-  readr::write_delim(data, file, delim = delim, na = na, append = append)
+  dir.create(dirname(file), recursive = TRUE, showWarnings = FALSE)
+  col_names <- !append || !file.exists(file)
+  readr::write_delim(data, file, delim = delim, na = na, append = append, col_names = col_names)
 
   invisible(data)
 }

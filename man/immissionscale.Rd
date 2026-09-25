@@ -15,7 +15,9 @@ A ggplot2 scale.
 }
 \description{
 Limits, breaks and legend title follow the reporting conventions for each
-parameter, so the same pollutant always looks the same across figures.
+parameter, so the same pollutant always looks the same across figures. The
+legend title is markdown (\code{\link[=markdown_text]{markdown_text()}}: NO\if{html}{\out{<sub>}}2\if{html}{\out{</sub>}}, m\if{html}{\out{<sup>}}3\if{html}{\out{</sup>}}),
+rendered by ggtext.
 }
 \examples{
 library(ggplot2)

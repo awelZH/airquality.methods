@@ -11,7 +11,7 @@ tasks**, in a tidy file structure, properly documented.
 
 ## What this repo is
 
-An R package (version 0.5.2, GPL >= 3, renv-managed, R >= 4.2). It is *not* an analysis repo: no
+An R package (version 0.5.3, GPL >= 3, renv-managed, R >= 4.2). It is *not* an analysis repo: no
 report logic, no hard-coded project paths, no dataset-specific pipelines. Everything that only makes
 sense inside one specific analysis belongs to `airquality`.
 
@@ -27,7 +27,7 @@ Layout of `R/`:
 | `raster-cube.R` | `stack_years()`, `tibble_to_cube()`, grid descriptions |
 | `raster-align.R` | GDAL resampling, temporal matching, `align_to_reference/grid()` |
 | `read-tabular.R`, `read-vector.R` | opendata.swiss (`get_opendataswiss_resources()`: resources with `modified` and `byte_size`, the version to check before a download; no checksum published), local CSV, geolion WFS |
-| `recode.R` | pollutant and metric labels |
+| `recode.R` | pollutant and metric labels; `markdown_text()` (subscripts and superscripts for ggtext) |
 | `aggregate.R` | `aggregate_groups()` |
 | `scale-capped*.R` | capped ggplot2 colour scales (moved from `ufp25`) |
 | `scales.R`, `theme.R` | pollutant scales and figure themes |
@@ -121,6 +121,14 @@ message, if the STAC metadata declare it (`proj:epsg`) **and** `same_projection(
 projection parameters (proj strings without `+towgs84`/`+no_defs`). A file without EPSG code in another
 projection, or without `proj:epsg` in the metadata, still stops. Nothing is reprojected, so the missing
 datum shift does not matter.
+
+**12. Legend titles of the pollutant scales are markdown, rendered by ggtext** (0.5.3, 2026-09-25).
+Plot titles use `openair::quickText()` (plotmath) for subscripts, but plotmath cannot break lines, and the
+legend titles of `immissionscale()` have two or three lines ("NO2\n(µg/m3)"). `markdown_text()` writes
+pollutants with `<sub>`, m2/m3 with `<sup>` and line breaks as `<br>` (angle brackets in the text
+escaped); `capped_markdown()` gives the capped scale a guide whose own theme sets
+`legend.title = ggtext::element_markdown()`, so it works whatever the theme of the plot and consumers
+change nothing. `ggtext` is a new import.
 
 ## Scope decisions (deliberate, not technical limits)
 

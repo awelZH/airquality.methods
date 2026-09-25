@@ -118,3 +118,30 @@ longparameter <- function(x) {
     default = "Jahresmittel"
   )
 }
+
+#' Write pollutants and units as markdown for ggtext
+#'
+#' The markdown counterpart of [openair::quickText()] for text that ggtext renders
+#' (e.g. a legend title with `ggtext::element_markdown()`): pollutant formulas get
+#' subscripts (NO2, NOx, SO2, CO2, NH3, O3, PM10, PM2.5, PM1), square and cubic
+#' metres a superscript (m2, m3), line breaks become `<br>`. Unlike plotmath this
+#' works in text over several lines. Angle brackets and ampersands in the text are
+#' escaped first, so they are not taken for HTML.
+#'
+#' @param x Character vector.
+#'
+#' @return `x` as markdown; `NA` stays `NA`.
+#'
+#' @examples
+#' markdown_text(c("NO2", "PM2.5 and PM10", "O3 (ug/m3)"))
+#'
+#' @export
+markdown_text <- function(x) {
+  x |>
+    stringr::str_replace_all(c("&" = "&amp;", "<" = "&lt;", ">" = "&gt;")) |>
+    stringr::str_replace_all("\\bPM(10|2\\.5|1)\\b", "PM<sub>\\1</sub>") |>
+    stringr::str_replace_all("\\b(NO|SO|CO|NH)([0-9x])\\b", "\\1<sub>\\2</sub>") |>
+    stringr::str_replace_all("\\bO3\\b", "O<sub>3</sub>") |>
+    stringr::str_replace_all("\\bm([23])\\b", "m<sup>\\1</sup>") |>
+    stringr::str_replace_all("\n", "<br>")
+}

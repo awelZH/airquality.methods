@@ -109,3 +109,12 @@ test_that("theme_legend_inside places the legend inside the panel", {
   expect_equal(theme$legend.position, "inside")
   expect_equal(theme$legend.position.inside, c(0.975, 0.95))
 })
+
+test_that("immissionscale writes the legend title as markdown and renders it with ggtext", {
+  scale <- immissionscale("NO2")
+
+  expect_equal(scale$name, "NO<sub>2</sub><br>(µg/m<sup>3</sup>)")
+  expect_s3_class(scale$guide$params$theme$legend.title, "element_markdown")
+  expect_renders_clean(raster_plot(immissionscale("PM2.5")))
+  expect_renders_clean(raster_plot(immissionscale("Ndep")))
+})

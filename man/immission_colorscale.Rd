@@ -7,8 +7,8 @@
 immission_colorscale(...)
 }
 \arguments{
-\item{...}{Arguments passed to \code{\link[=scale_fill_capped]{scale_fill_capped()}}, \code{limits}, \code{breaks} and
-\code{name} above all.}
+\item{...}{Arguments passed to \code{\link[=capped_markdown]{capped_markdown()}}, \code{name}, \code{limits} and
+\code{breaks} above all.}
 }
 \value{
 A ggplot2 scale.

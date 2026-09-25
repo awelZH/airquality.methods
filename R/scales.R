@@ -6,8 +6,8 @@
 #' scale: values beyond `limits` are squished onto the edge colour and the legend
 #' flags them with "<="/">=" instead of turning them into holes in the map.
 #'
-#' @param ... Arguments passed to [scale_fill_capped()], `limits`, `breaks` and
-#'   `name` above all.
+#' @param ... Arguments passed to [capped_markdown()], `name`, `limits` and
+#'   `breaks` above all.
 #'
 #' @return A ggplot2 scale.
 #'
@@ -19,13 +19,32 @@ immission_colorscale <- function(...) {
     "#ffa300", "#ff5200", "#ff0000", "#ff0094", "#de00a1", "#c500ba"
   )
 
-  scale_fill_capped(palette = colours, na.value = NA, ...)
+  capped_markdown(palette = colours, ...)
+}
+
+#' Capped fill scale with a markdown legend title
+#'
+#' The legend title is written with [markdown_text()] (subscripts for pollutants,
+#' superscripts for units, line breaks) and rendered by ggtext through the theme
+#' of the guide, so it works whatever the theme of the plot.
+#'
+#' @param name Legend title as plain text, e.g. `"NO2\n(ug/m3)"`.
+#' @param ... Arguments passed to [scale_fill_capped()].
+#'
+#' @return A ggplot2 scale.
+#'
+#' @keywords internal
+capped_markdown <- function(name, ...) {
+  guide <- guide_colourbar_capped(theme = ggplot2::theme(legend.title = ggtext::element_markdown()))
+  scale_fill_capped(name = markdown_text(name), na.value = NA, guide = guide, ...)
 }
 
 #' Pollutant-specific fill scale for raster maps
 #'
 #' Limits, breaks and legend title follow the reporting conventions for each
-#' parameter, so the same pollutant always looks the same across figures.
+#' parameter, so the same pollutant always looks the same across figures. The
+#' legend title is markdown ([markdown_text()]: NO<sub>2</sub>, m<sup>3</sup>),
+#' rendered by ggtext.
 #'
 #' @param parameter Parameter code, for example `"NO2"` or
 #'   `"O3_peakseason_mean_d1_max_mean_h8gl"`.
@@ -64,12 +83,12 @@ immissionscale <- function(parameter) {
       limits = c(0, 1.5), breaks = seq(0, 1.5, 0.3), name = "eBC\n(\u00b5g/m3)"
     ),
     # nitrogen uses the sequential magma ramp, reversed: dark is high
-    NH3 = scale_fill_capped(
-      palette = "Magma", direction = -1, na.value = NA,
+    NH3 = capped_markdown(
+      palette = "Magma", direction = -1,
       limits = c(1, 7), breaks = seq(1, 7, 2), name = "NH3\n(\u00b5g/m3)"
     ),
-    Ndep = scale_fill_capped(
-      palette = "Magma", direction = -1, na.value = NA,
+    Ndep = capped_markdown(
+      palette = "Magma", direction = -1,
       limits = c(0, 30), breaks = seq(0, 30, 5), name = "Ndep > CLN\n(kgN/ha/Jahr)"
     ),
     cli::cli_abort(c(

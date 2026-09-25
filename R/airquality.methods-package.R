@@ -3,7 +3,7 @@
 
 ## usethis namespace: start
 #' @importFrom lifecycle deprecated
-#' @importFrom rlang %||% .data .env
+#' @importFrom rlang %||% .data .env :=
 #'
 #' Loading `stars` and `sf` here is not cosmetic. Both register S3 methods for
 #' each other's generics (`st_normalize.stars`, `st_crop.stars`, ...) in their

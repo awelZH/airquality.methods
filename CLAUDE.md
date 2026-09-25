@@ -11,7 +11,7 @@ tasks**, in a tidy file structure, properly documented.
 
 ## What this repo is
 
-An R package (version 0.4.0, GPL >= 3, renv-managed, R >= 4.2). It is *not* an analysis repo: no
+An R package (version 0.5.0, GPL >= 3, renv-managed, R >= 4.2). It is *not* an analysis repo: no
 report logic, no hard-coded project paths, no dataset-specific pipelines. Everything that only makes
 sense inside one specific analysis belongs to `airquality`.
 
@@ -33,6 +33,8 @@ Layout of `R/`:
 | `scales.R`, `theme.R` | pollutant scales and figure themes |
 | `legend-grouped.R` | `grouped_key()`, `add_grouped_legend()`: one legend block per group (`legendry`, Suggests) |
 | `municipalities.R` | geolion municipality map: `drop_foreign_enclaves()`, `assign_municipalities()`; STATPOP collector pixels back to their municipality: `noloc_from_aligned()`, `redistribute_noloc()` |
+| `ndep.R` | classes of the nitrogen deposition analysis (Ostluft conventions): `recode_ecosystems()`, `classify_ostluft_siteclass()`, `classify_nh3_emission()`, `classify_estimated()`, `classify_frac_estimated()`, `derive_source_category()` |
+| `plot-catalog.R` | plots of a Quarto report in one table: `plot_catalog()`, `catalog_entries()`, `get_plot()` (error class `plot_catalog_error`); `print_tabset()` |
 | `utils.R` | `check_names()` (exported, optional error `class`), `round_off()`, `write_local_csv()` (creates directories; appending to a new file writes the header) |
 | `deprecated.R` | wrappers keeping `airquality` running during migration |
 
@@ -117,6 +119,9 @@ so the cache logic (checksums, `.part` files, reuse) can be tested without a net
   cadastre preparation and all plotting of concrete figures live in `airquality`. Building blocks
   that any analysis of the canton's grid data needs (municipality assignment, collector pixel
   redistribution, grouped legend) are not analysis logic and live here (user decision 2026-09-21).
+  The same holds for the plot catalog and the tabset of Quarto reports and for the Ostluft classes
+  of the nitrogen deposition, which `ndep.ostluft` uses as well (user decision 2026-09-25). The year
+  slider of `airquality` stays there: it needs its own HTML/JS asset and German tab titles.
 * **Raster only, for now.** The geodata stack reads GeoTIFF/COG and hectare tables (parquet, csv).
   Vector data stays with `sf::read_sf()` and the geolion WFS reader.
 * **Cantonal default, national capability.** `bbox_zh_lv95` is the default extent; every function
@@ -141,6 +146,8 @@ so the cache logic (checksums, `.part` files, reuse) can be tested without a net
 | `drop_foreign_enclaves()`, `assign_municipalities()`, `noloc_from_aligned()`, `redistribute_noloc()` (in `airquality`, 2026-09-21) | same names, unchanged; the collector pixel correction (subtract in `read_statpop_ha()`, give back in `redistribute_noloc()`) now lives in one package |
 | `check_columns()` (in `airquality`, 2026-09-21) | `check_names(names(data), required, what, class = )`; `airquality` keeps a one-line wrapper for its error class |
 | `append_log()` (in `airquality`, 2026-09-21) | `write_local_csv(append = TRUE)` |
+| `recode_ecosystems()`, `classify_*()` (site, NH3 emission, estimated part), `derive_source_category()` (in `airquality`, 0.5.0, 2026-09-25) | same names, unchanged; replace the copies in `ndep.ostluft` (`recode_ecosys()`, `ostluft_siteclass()`, `cut_*()`, `derive_source_cat()`) |
+| `plot_catalog()`, `catalog_entries()`, `get_plot()`, `print_tabset()` (in `airquality`, 0.5.0, 2026-09-25) | same names; errors now of class `plot_catalog_error` (was `airquality_plot_error`), `print_tabset(level = 5)` |
 
 Deprecated wrappers still return the **old** shapes, so `airquality` runs unchanged and emits
 deprecation warnings. Two behavioural differences to know about:

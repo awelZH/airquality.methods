@@ -11,7 +11,7 @@ tasks**, in a tidy file structure, properly documented.
 
 ## What this repo is
 
-An R package (version 0.5.0, GPL >= 3, renv-managed, R >= 4.2). It is *not* an analysis repo: no
+An R package (version 0.5.1, GPL >= 3, renv-managed, R >= 4.2). It is *not* an analysis repo: no
 report logic, no hard-coded project paths, no dataset-specific pipelines. Everything that only makes
 sense inside one specific analysis belongs to `airquality`.
 
@@ -26,7 +26,7 @@ Layout of `R/`:
 | `geo-admin-collections.R` | `collection_spec()`, `geo_admin_specs()`, `read_geo_admin()` |
 | `raster-cube.R` | `stack_years()`, `tibble_to_cube()`, grid descriptions |
 | `raster-align.R` | GDAL resampling, temporal matching, `align_to_reference/grid()` |
-| `read-tabular.R`, `read-vector.R` | opendata.swiss, local CSV, geolion WFS |
+| `read-tabular.R`, `read-vector.R` | opendata.swiss (`get_opendataswiss_resources()`: resources with `modified` and `byte_size`, the version to check before a download; no checksum published), local CSV, geolion WFS |
 | `recode.R` | pollutant and metric labels |
 | `aggregate.R` | `aggregate_groups()` |
 | `scale-capped*.R` | capped ggplot2 colour scales (moved from `ufp25`) |

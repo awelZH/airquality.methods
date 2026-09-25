@@ -251,6 +251,50 @@ test_that("get_opendataswiss_metadata aborts when nothing matches, listing what 
   )
 })
 
+test_that("get_opendataswiss_resources lists the resources with their version, in API order", {
+  body <- list(result = list(resources = list(
+    list(download_url = "https://x/b.csv", format = "CSV", modified = "2026-02-06T14:12:28+01:00", byte_size = 28498959),
+    list(download_url = "https://x/a.txt", format = "TXT", modified = "2025-12-15T14:49:10+01:00", byte_size = 2680),
+    list(url = "https://x/no-download", format = "HTML"),
+    list(download_url = "https://x/c.csv", format = "CSV")
+  )))
+
+  resources <- httr2::with_mocked_responses(
+    function(req) {
+      httr2::response(
+        status_code = 200, url = "https://ckan/api",
+        headers = list(`Content-Type` = "application/json"),
+        body = charToRaw(jsonlite::toJSON(body, auto_unbox = TRUE))
+      )
+    },
+    get_opendataswiss_resources("https://ckan/api")
+  )
+
+  expect_s3_class(resources, "tbl_df")
+  expect_named(resources, c("download_url", "format", "modified", "byte_size"))
+  expect_equal(resources$download_url, c("https://x/b.csv", "https://x/a.txt", "https://x/c.csv"))
+  expect_equal(resources$modified, c("2026-02-06T14:12:28+01:00", "2025-12-15T14:49:10+01:00", NA))
+  expect_equal(resources$byte_size, c(28498959, 2680, NA))
+})
+
+test_that("get_opendataswiss_resources returns an empty table for a dataset without downloads", {
+  body <- list(result = list(resources = list()))
+
+  resources <- httr2::with_mocked_responses(
+    function(req) {
+      httr2::response(
+        status_code = 200, url = "https://ckan/api",
+        headers = list(`Content-Type` = "application/json"),
+        body = charToRaw(jsonlite::toJSON(body, auto_unbox = TRUE))
+      )
+    },
+    get_opendataswiss_resources("https://ckan/api")
+  )
+
+  expect_equal(nrow(resources), 0)
+  expect_named(resources, c("download_url", "format", "modified", "byte_size"))
+})
+
 test_that("read_local_csv reads the cantonal export defaults", {
   path <- withr::local_tempfile(fileext = ".csv")
   writeLines(c("a;b", "1;2"), path)

@@ -1,5 +1,44 @@
 # Readers for tabular sources: opendata.swiss and local files.
 
+#' List the resources of an opendata.swiss dataset
+#'
+#' The version of each resource as the CKAN API describes it, so that a pipeline can check it on every
+#' run and download the data only when it changed. opendata.swiss publishes no checksum (`hash` is
+#' empty), so the modification time and the size stand for the version.
+#'
+#' @param apiurl Package-show url of the CKAN API.
+#' @param useragent User agent sent with the request; opendata.swiss refuses requests without one.
+#'
+#' @return Tibble with one row per resource that has a download url, in the order of the API:
+#'   `download_url`, `format`, `modified` (character, as published) and `byte_size` (numeric); `NA`
+#'   where the API leaves a field out.
+#'
+#' @examplesIf interactive()
+#' api <- "https://ckan.opendata.swiss/api/3/action/package_show"
+#' get_opendataswiss_resources(paste0(api, "?id=luftschadstoffemissionen-im-kanton-zurich"))
+#'
+#' @export
+get_opendataswiss_resources <- function(apiurl, useragent = "Amt f\u00fcr Abfall, Wasser, Energie und Luft, Kanton Z\u00fcrich") {
+  resources <- httr2::request(apiurl) |>
+    httr2::req_user_agent(useragent) |>
+    httr2::req_retry(max_tries = 3) |>
+    httr2::req_perform() |>
+    httr2::resp_body_json() |>
+    purrr::pluck("result", "resources", .default = list()) |>
+    purrr::keep(\(resource) !is.null(resource[["download_url"]]))
+
+  field <- function(name, missing) {
+    purrr::map_vec(resources, \(resource) resource[[name]] %||% missing, .ptype = missing)
+  }
+
+  tibble::tibble(
+    download_url = field("download_url", NA_character_),
+    format = field("format", NA_character_),
+    modified = field("modified", NA_character_),
+    byte_size = field("byte_size", NA_real_)
+  )
+}
+
 #' Get the download links of an opendata.swiss dataset
 #'
 #' @param apiurl Package-show url of the CKAN API.
@@ -12,17 +51,7 @@
 get_opendataswiss_metadata <- function(apiurl,
                                        file_filter = ".csv",
                                        useragent = "Amt f\u00fcr Abfall, Wasser, Energie und Luft, Kanton Z\u00fcrich") {
-  metadata <- httr2::request(apiurl) |>
-    httr2::req_user_agent(useragent) |>
-    httr2::req_retry(max_tries = 3) |>
-    httr2::req_perform() |>
-    httr2::resp_body_json() |>
-    purrr::pluck("result")
-
-  links <- metadata |>
-    purrr::pluck("resources", .default = list()) |>
-    purrr::map_chr(\(resource) resource[["download_url"]] %||% NA_character_) |>
-    purrr::discard(is.na)
+  links <- get_opendataswiss_resources(apiurl, useragent)$download_url
 
   matching <- links[stringr::str_detect(links, stringr::fixed(file_filter))]
   if (length(matching) == 0) {

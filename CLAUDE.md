@@ -11,7 +11,7 @@ tasks**, in a tidy file structure, properly documented.
 
 ## What this repo is
 
-An R package (version 0.5.1, GPL >= 3, renv-managed, R >= 4.2). It is *not* an analysis repo: no
+An R package (version 0.5.2, GPL >= 3, renv-managed, R >= 4.2). It is *not* an analysis repo: no
 report logic, no hard-coded project paths, no dataset-specific pipelines. Everything that only makes
 sense inside one specific analysis belongs to `airquality`.
 
@@ -112,6 +112,15 @@ whiskers at the true extremes, so a fixed-limit map shows no holes and hides not
 
 **10. The network boundary is one function.** Downloads go through `fetch_to_file()`, which exists
 so the cache logic (checksums, `.part` files, reuse) can be tested without a network.
+
+**11. A GeoTIFF without EPSG code is accepted only when two sources agree** (0.5.2, 2026-09-25).
+The BAFU PM10 maps 1998–2001 (4 of 101 pollutant maps 1995–2025) are in LV95, but their WKT carries no
+EPSG code and no datum shift (`+towgs84`), so `sf::st_crs(x) == sf::st_crs(2056)` is `FALSE` and
+`read_tif_stars()` refused them. `resolve_tif_crs()` now reads such a file as the expected crs, with a
+message, if the STAC metadata declare it (`proj:epsg`) **and** `same_projection()` finds the same
+projection parameters (proj strings without `+towgs84`/`+no_defs`). A file without EPSG code in another
+projection, or without `proj:epsg` in the metadata, still stops. Nothing is reprojected, so the missing
+datum shift does not matter.
 
 ## Scope decisions (deliberate, not technical limits)
 

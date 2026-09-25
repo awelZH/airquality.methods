@@ -183,6 +183,70 @@ test_that("read_asset_stars refuses an asset in the wrong crs", {
   expect_error(read_asset_stars(asset, crs = 2056), "EPSG:21781")
 })
 
+# A small GeoTIFF whose crs carries no EPSG code, like the BAFU PM10 maps 1998-2001: the proj string of
+# `epsg` without the datum shift (+towgs84).
+tif_without_epsg <- function(epsg = 2056, env = parent.frame()) {
+  proj <- sub(" [+]towgs84=[^ ]+", "", sf::st_crs(epsg)$proj4string)
+  x <- stars::st_as_stars(
+    sf::st_bbox(c(xmin = 2600000, ymin = 1200000, xmax = 2600400, ymax = 1200400)),
+    dx = 100, values = 1
+  )
+  x <- sf::st_set_crs(x, sf::st_crs(proj))
+  path <- withr::local_tempfile(fileext = ".tif", .local_envir = env)
+  stars::write_stars(x, path)
+  path
+}
+
+tif_asset <- function(epsg = 2056L) {
+  asset <- tibble::tibble(
+    asset = "x_2056.tif", href = "https://x/x_2056.tif", format = "tif", compression = "deflate"
+  )
+  if (!is.null(epsg)) asset[["proj:epsg"]] <- epsg
+  asset
+}
+
+test_that("the fixture reproduces a GeoTIFF without EPSG code", {
+  crs <- sf::st_crs(stars::read_stars(tif_without_epsg(), proxy = TRUE))
+
+  expect_true(is.na(crs$epsg))
+  expect_false(crs == sf::st_crs(2056))
+})
+
+test_that("read_asset_stars reads a GeoTIFF without EPSG code as EPSG:2056 if the STAC metadata say so", {
+  path <- tif_without_epsg()
+  local_mocked_bindings(download_geo_admin_asset = function(asset, ...) path)
+
+  expect_message(x <- read_asset_stars(tif_asset(), crs = 2056), "no EPSG code")
+
+  expect_true(sf::st_crs(x) == sf::st_crs(2056))
+  expect_equal(dim(x), c(x = 4, y = 4))
+})
+
+test_that("read_asset_stars refuses a GeoTIFF without EPSG code in another projection", {
+  path <- tif_without_epsg(21781)
+  local_mocked_bindings(download_geo_admin_asset = function(asset, ...) path)
+
+  expect_error(read_asset_stars(tif_asset(), crs = 2056), "is not in EPSG:2056")
+})
+
+test_that("read_asset_stars refuses a GeoTIFF without EPSG code if the STAC metadata name no crs", {
+  path <- tif_without_epsg()
+  local_mocked_bindings(download_geo_admin_asset = function(asset, ...) path)
+
+  expect_error(read_asset_stars(tif_asset(epsg = NULL), crs = 2056), "is not in EPSG:2056")
+})
+
+test_that("read_asset_stars reads a GeoTIFF in EPSG:2056 without a message", {
+  x <- stars::st_as_stars(sf::st_bbox(c(xmin = 2600000, ymin = 1200000, xmax = 2600400, ymax = 1200400),
+                                      crs = sf::st_crs(2056)), dx = 100, values = 1)
+  path <- withr::local_tempfile(fileext = ".tif")
+  stars::write_stars(x, path)
+  local_mocked_bindings(download_geo_admin_asset = function(asset, ...) path)
+
+  expect_no_message(y <- read_asset_stars(tif_asset(), crs = 2056))
+  expect_true(sf::st_crs(y) == sf::st_crs(2056))
+})
+
 test_that("read_asset_stars validates that exactly one asset was passed", {
   assets <- tibble::tibble(
     asset = c("a.csv", "b.csv"), href = c("https://x/a", "https://x/b"), format = "csv"

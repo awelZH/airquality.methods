@@ -25,5 +25,7 @@ A \code{stars} object.
 \description{
 Uncompressed assets are streamed through GDAL's \verb{/vsicurl/} driver so only the
 requested window is transferred; compressed ones are downloaded and cached.
+A file whose crs carries no EPSG code is accepted if its projection and the
+STAC metadata both give the expected crs (\code{\link[=resolve_tif_crs]{resolve_tif_crs()}}).
 }
 \keyword{internal}

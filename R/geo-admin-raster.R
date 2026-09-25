@@ -239,10 +239,72 @@ local_quiet_vsicurl <- function(extensions = ".tif", envir = rlang::caller_env()
   invisible(previous)
 }
 
+#' Do two coordinate reference systems describe the same projection?
+#'
+#' Compares the proj strings without the datum shift (`+towgs84`) and `+no_defs`,
+#' with the terms sorted. The datum shift only matters when transforming to
+#' another datum, not for reading coordinates in the same projection.
+#'
+#' @param x,y Anything [sf::st_crs()] accepts.
+#'
+#' @return `TRUE` or `FALSE`.
+#'
+#' @keywords internal
+same_projection <- function(x, y) {
+  terms <- function(crs) {
+    proj <- sf::st_crs(crs)$proj4string
+    if (is.null(proj) || is.na(proj)) return(NA_character_)
+    parts <- strsplit(proj, " ", fixed = TRUE)[[1]]
+    sort(parts[!grepl("^[+](towgs84|no_defs)", parts)])
+  }
+  a <- terms(x)
+  b <- terms(y)
+
+  !anyNA(a) && !anyNA(b) && identical(a, b)
+}
+
+#' Check the crs of a GeoTIFF, accepting a file without EPSG code
+#'
+#' A file in the expected crs is returned as it is. A file whose crs carries no
+#' EPSG code (the BAFU PM10 maps 1998-2001: LV95 without EPSG code and datum
+#' shift) is read in the expected crs, with a message, only if the STAC metadata
+#' of the asset declare that crs (`proj:epsg`) and the projection of the file is
+#' the same ([same_projection()]). Everything else stops.
+#'
+#' @param x A `stars` or `stars_proxy` object.
+#' @param asset The asset row, with `asset` and optionally `proj:epsg`.
+#' @param crs Expected crs.
+#'
+#' @return `x`, with the expected crs.
+#'
+#' @keywords internal
+resolve_tif_crs <- function(x, asset, crs) {
+  file_crs <- sf::st_crs(x)
+  expected <- sf::st_crs(crs)
+  if (file_crs == expected) return(x)
+
+  declared <- asset[["proj:epsg"]]
+  declared_matches <- !is.null(declared) && !is.na(declared) && identical(as.integer(declared), as.integer(expected$epsg))
+  if (is.na(file_crs$epsg) && declared_matches && same_projection(file_crs, expected)) {
+    cli::cli_inform(c(
+      "i" = "{.val {asset$asset}} carries no EPSG code; its projection equals {expected$input} as declared in the
+             STAC metadata, read as {expected$input}."
+    ))
+    return(sf::st_set_crs(x, expected))
+  }
+
+  cli::cli_abort(c(
+    "{.val {asset$asset}} is not in {expected$input}.",
+    "i" = "The file is in {.val {file_crs$Name %||% file_crs$input}}."
+  ))
+}
+
 #' Read a GeoTIFF asset as stars
 #'
 #' Uncompressed assets are streamed through GDAL's `/vsicurl/` driver so only the
 #' requested window is transferred; compressed ones are downloaded and cached.
+#' A file whose crs carries no EPSG code is accepted if its projection and the
+#' STAC metadata both give the expected crs ([resolve_tif_crs()]).
 #'
 #' @inheritParams read_asset_stars
 #' @param cache_dir Cache directory for downloads.
@@ -260,10 +322,8 @@ read_tif_stars <- function(asset, variables, bbox, crs, cache_dir) {
 
   if (is.na(compression)) local_quiet_vsicurl()
 
-  x <- stars::read_stars(source, proxy = TRUE)
-  if (sf::st_crs(x) != sf::st_crs(crs)) {
-    cli::cli_abort("{.val {asset$asset}} is not in {sf::st_crs(crs)$input}.")
-  }
+  x <- stars::read_stars(source, proxy = TRUE) |>
+    resolve_tif_crs(asset, crs)
   if (!is.null(bbox)) x <- sf::st_crop(x, bbox)
   x <- stars::st_as_stars(x)
 
@@ -284,7 +344,10 @@ read_tif_stars <- function(asset, variables, bbox, crs, cache_dir) {
 #' Read one asset as a georeferenced stars object
 #'
 #' GeoTIFFs are read directly; tabular assets (parquet, csv hectare grids) are
-#' downloaded, cached and rasterised via [table_to_stars()].
+#' downloaded, cached and rasterised via [table_to_stars()]. A GeoTIFF whose crs
+#' carries no EPSG code is read in `crs` (with a message) if the STAC metadata
+#' declare that crs and its projection parameters are the same; otherwise a crs
+#' other than `crs` stops.
 #'
 #' @param asset A single row from [get_geo_admin_assets()].
 #' @param variables Attributes or bands to keep (`NULL` = all). For large extents

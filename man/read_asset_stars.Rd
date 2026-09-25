@@ -35,5 +35,8 @@ A \code{stars} object, normalised so that grids are directly comparable.
 }
 \description{
 GeoTIFFs are read directly; tabular assets (parquet, csv hectare grids) are
-downloaded, cached and rasterised via \code{\link[=table_to_stars]{table_to_stars()}}.
+downloaded, cached and rasterised via \code{\link[=table_to_stars]{table_to_stars()}}. A GeoTIFF whose crs
+carries no EPSG code is read in \code{crs} (with a message) if the STAC metadata
+declare that crs and its projection parameters are the same; otherwise a crs
+other than \code{crs} stops.
 }

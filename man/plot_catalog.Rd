@@ -36,5 +36,6 @@ catalog
 
 }
 \seealso{
-\code{\link[=get_plot]{get_plot()}} to take one plot out again, \code{\link[=catalog_entries]{catalog_entries()}} for several.
+\code{\link[=get_plot]{get_plot()}} to take one plot out again, \code{\link[=catalog_entries]{catalog_entries()}} for several;
+\code{\link[=fig_meta]{fig_meta()}} for the caption and alt text a plot carries to the page.
 }

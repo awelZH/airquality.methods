@@ -11,7 +11,7 @@ tasks**, in a tidy file structure, properly documented.
 
 ## What this repo is
 
-An R package (version 0.5.3, GPL >= 3, renv-managed, R >= 4.2). It is *not* an analysis repo: no
+An R package (version 0.6.0, GPL >= 3, renv-managed, R >= 4.2). It is *not* an analysis repo: no
 report logic, no hard-coded project paths, no dataset-specific pipelines. Everything that only makes
 sense inside one specific analysis belongs to `airquality`.
 
@@ -32,6 +32,8 @@ Layout of `R/`:
 | `scale-capped*.R` | capped ggplot2 colour scales (moved from `ufp25`) |
 | `scales.R`, `theme.R` | pollutant scales and figure themes |
 | `legend-grouped.R` | `grouped_key()`, `add_grouped_legend()`: one legend block per group (`legendry`, Suggests) |
+| `legend-keys.R` | `band_key()`: a key for a median-and-percentile-band figure, as a plot of its own to place beside it (moved from `ufp25`) |
+| `fig-meta.R` | `fig_meta()`: title, caption, note and alt text carried on the plot object, never drawn; `fig_title/caption/note/alt()`, `fig_index()` (moved from `ufp25`) |
 | `municipalities.R` | geolion municipality map: `drop_foreign_enclaves()`, `assign_municipalities()`; STATPOP collector pixels back to their municipality: `noloc_from_aligned()`, `redistribute_noloc()` |
 | `ndep.R` | classes of the nitrogen deposition analysis (Ostluft conventions): `recode_ecosystems()`, `classify_ostluft_siteclass()`, `classify_nh3_emission()`, `classify_estimated()`, `classify_frac_estimated()`, `derive_source_category()` |
 | `plot-catalog.R` | plots of a Quarto report in one table: `plot_catalog()`, `catalog_entries()`, `get_plot()` (error class `plot_catalog_error`); `print_tabset()` |
@@ -130,6 +132,27 @@ escaped); `capped_markdown()` gives the capped scale a guide whose own theme set
 `legend.title = ggtext::element_markdown()`, so it works whatever the theme of the plot and consumers
 change nothing. `ggtext` is a new import.
 
+**13. Report texts travel with the plot, not in it** (0.6.0, 2026-09-30, moved from `ufp25`).
+`fig_meta()` stores title, caption and methodological note in the plot's `fig_meta` attribute
+(it was `ufp_fig` in `ufp25`), which survives `+` and `ggsave()`, and writes one generated alt text
+into ggplot2's own `alt` label, so knitr and screen readers read the same text the report quotes.
+Nothing is drawn: a title in the panel repeats the Quarto caption and has to be re-flowed on every
+resize. It refuses a non-plot, because `ggplot() + theme() |> fig_meta()` hands over the theme
+(`|>` binds tighter than `+`). Together with the plot catalog: the catalog carries the plot to the
+page, `fig_caption()`/`fig_alt()` give its texts there.
+
+**14. A key that ggplot2 cannot build is a plot of its own** (0.6.0, 2026-09-30, moved from
+`ufp25`). A distribution panel draws median, mean and two percentile bands from four columns of the
+same rows; mapping them onto aesthetics just to get a legend would draw the figure the wrong way
+round. `band_key()` draws a schematic hump with the four elements mapped *there* and lets ggplot2 lay
+out the legend; it is placed beside the figure (patchwork). The alphas are baked into the fills so
+the legend shows the shade the figure draws. Its default theme is `theme_minimal(9)`; callers pass
+the theme of the figure it explains (`ufp25` passes its report theme).
+
+**Moved code keeps its base `lapply`/`vapply`.** Code taken over from `ufp25` is not restyled to
+purrr and `\(x)`: a restyle is a behaviour risk without a gain, and `ufp25` checks every one of its
+figures for identity across a move. New code here follows the conventions below.
+
 ## Scope decisions (deliberate, not technical limits)
 
 * **No analysis logic, no reports, no data.** Exposure distributions, health outcomes, emission
@@ -165,6 +188,8 @@ change nothing. `ggtext` is a new import.
 | `append_log()` (in `airquality`, 2026-09-21) | `write_local_csv(append = TRUE)` |
 | `recode_ecosystems()`, `classify_*()` (site, NH3 emission, estimated part), `derive_source_category()` (in `airquality`, 0.5.0, 2026-09-25) | same names, unchanged; replace the copies in `ndep.ostluft` (`recode_ecosys()`, `ostluft_siteclass()`, `cut_*()`, `derive_source_cat()`) |
 | `plot_catalog()`, `catalog_entries()`, `get_plot()`, `print_tabset()` (in `airquality`, 0.5.0, 2026-09-25) | same names; errors now of class `plot_catalog_error` (was `airquality_plot_error`), `print_tabset(level = 5)` |
+| `scale_capped()` and variants (in `ufp25`; its copy deleted 2026-09-30) | same names, unchanged |
+| `fig_meta()`, `fig_title/caption/note/alt()`, `fig_index()`, `band_key()` (in `ufp25`, 0.6.0, 2026-09-30) | same names; the attribute is `fig_meta` (was `ufp_fig`); `band_key()`'s default theme is `theme_minimal(9)` (was `ufp25::theme_report(9)`) |
 
 Deprecated wrappers still return the **old** shapes, so `airquality` runs unchanged and emits
 deprecation warnings. Two behavioural differences to know about:
@@ -275,6 +300,13 @@ caught this because the suite always calls something `stars::` first.
 * **`airquality`:** done 2026-09-18 – obsolete prefixes removed, exposition switched to
   `read_geo_admin()`/`align_to_reference()`, no deprecated wrapper is called any more. It uses 0.4.0
   from a local renv install until 0.4.0 is pushed.
-* **`ufp25`:** `scale_capped` now exists in both packages. `ufp25` should import it from
-  `airquality.methods` (`R/polar_raster.R`, `R/polar_raster_plot.R` use it) and drop its own copy.
-* `to-do.md` flags further `ufp25` functions worth integrating.
+* **`ufp25`:** imports this package (pinned by commit in its `renv.lock`) and has dropped its copy
+  of `scale_capped` (2026-09-30). Moving over, in this order: `fig_meta()` family and `band_key()`
+  (0.6.0); `bbox_lv95()`, `basemap_swisstopo()`, `annotation_basemap()`, `annotation_scalebar()`;
+  the polar family. Deliberately staying in `ufp25`: `theme_report()`, `read_ostluft_parquet()`,
+  the source location (`wd_extreme()`, `triangulate_rays()`, ...), the size distribution tools.
+  The record and the moving recipe: `ufp25/docs/decisions/13_airquality_methods.md`.
+* A shell that inherited `ufp25`'s renv variables (`RENV_PROJECT`, `R_LIBS_USER`) runs R in
+  *that* project's library even from this directory. Unset them (`env -u RENV_PROJECT
+  R_LIBS_USER="$RENV_DEFAULT_R_LIBS_USER" Rscript ...`). This library has no `devtools`:
+  `pkgload::load_all()`, `roxygen2::roxygenise()`, `testthat::test_dir()`.

@@ -18,7 +18,8 @@
 #'   column `figure`, one row per plot. Stops with an error of class `plot_catalog_error` if a list
 #'   level is not named.
 #'
-#' @seealso [get_plot()] to take one plot out again, [catalog_entries()] for several.
+#' @seealso [get_plot()] to take one plot out again, [catalog_entries()] for several;
+#'   [fig_meta()] for the caption and alt text a plot carries to the page.
 #'
 #' @examples
 #' p <- ggplot2::ggplot()

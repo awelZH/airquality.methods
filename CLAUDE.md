@@ -11,7 +11,7 @@ tasks**, in a tidy file structure, properly documented.
 
 ## What this repo is
 
-An R package (version 0.7.0, GPL >= 3, renv-managed, R >= 4.2). It is *not* an analysis repo: no
+An R package (version 0.7.1, GPL >= 3, renv-managed, R >= 4.2). It is *not* an analysis repo: no
 report logic, no hard-coded project paths, no dataset-specific pipelines. Everything that only makes
 sense inside one specific analysis belongs to `airquality`.
 
@@ -47,7 +47,16 @@ Layout of `R/`:
 | `deprecated.R` | wrappers keeping `airquality` running during migration |
 
 Vignettes: `geodata` (the whole chain), `statpop` (hectare grid and collector pixels), `scales`
-(capped colour scales).
+(pollutant scales, themes, capped scales in one figure), `capped-scales` (every option of the capped
+scale), `polar-plots` (polar plots from openair's `mydata`: smoothed, binned, sectors, grid, axis,
+key rose), `polar-maps` (roses on LV95 coordinates, swisstopo basemap, pinning, key rose, scale
+bar, attribution). The last three are the example scripts of `ufp25` (2026-10-01), kept about as
+broad as they were — the examples live where the functions are looked up. Their openair parts run
+only with openair installed, their basemap parts only online with `png`; basemap figures are
+rendered as JPEG, which keeps `polar-maps` at ~1.4 MB instead of ~4.7 MB.
+
+`R CMD build` installs the package to build the vignettes, and the `.Rprofile` would activate renv
+in that temporary copy and miss every dependency: build with `RENV_CONFIG_AUTOLOADER_ENABLED=FALSE`.
 
 History that explains the state before 0.4.0: commit `98682a9` moved ~60 analysis-specific functions
 to the `airquality` repo; `man/` was never cleaned up, `NAMESPACE` exported everything via
@@ -329,8 +338,10 @@ caught this because the suite always calls something `stars::` first.
 * **Errors:** `cli::cli_abort()`/`cli_warn()` with a cause line and an actionable hint, validated at
   the function boundary.
 * **Tests:** testthat 3e, tests first. The network is stubbed via `local_mocked_bindings()` on
-  `fetch_to_file()`/`read_asset_stars()` or `httr2::with_mocked_responses()`; no test touches the
-  network. Coverage is 93.6 %.
+  `fetch_to_file()`/`read_asset_stars()` or `httr2::with_mocked_responses()`. Exception, taken over
+  with the basemap from `ufp25` (0.7.0): two tests in `test-basemap-swisstopo.R` ("reaches the
+  service", "a pinned file is read back") call the swisstopo WMS when online and skip offline; the
+  offline path is tested without network. Coverage was 93.6 % before 0.6.0, not re-measured.
 * **Packages:** `pak` for installation, `renv` for the environment.
 
 ## Where to look next

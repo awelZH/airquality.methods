@@ -40,7 +40,9 @@ ggplot(d, aes(x, y, fill = value)) +
 ```
 
 The legend shows `≥ 60` and a whisker at the real maximum, so a reader can see
-both the classification and what it cost.
+both the classification and what it cost. `vignette("capped-scales")` goes
+through all options of the capped scale; `vignette("polar-plots")` and
+`vignette("polar-maps")` use it on wind roses and maps.
 
 ## Pollutant scales
 

@@ -1,0 +1,250 @@
+---
+title: "Capped colour scales in detail"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Capped colour scales in detail}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6, fig.height = 3.6)
+```
+
+```{r}
+#| message: false
+library(airquality.methods)
+library(ggplot2)
+```
+
+`vignette("scales")` introduces the capped scale in one figure. This vignette goes
+through its options one by one: one-sided caps, quantile limits, palettes, binned and
+discrete variants, the whisker, and the way back to ordinary ggplot2 behaviour.
+
+## Test data
+
+A raster field with a few strong outliers at the top and at the bottom, so that every
+example has something to cap.
+
+```{r}
+set.seed(42)
+d <- expand.grid(x = 1:60, y = 1:40)
+d$z <- 50 + 35 * sin(d$x / 7) * cos(d$y / 5) + rnorm(nrow(d), 0, 6)
+d$z[d$x < 4  & d$y < 4]  <- -40      # outlier below
+d$z[d$x > 57 & d$y > 37] <- 210      # outlier above
+
+range(d$z)
+
+ras <- function(...) {
+  ggplot(d, aes(x, y, fill = z)) + geom_raster() +
+    coord_fixed() + theme_bw() + labs(x = NULL, y = NULL)
+}
+```
+
+## The default case
+
+Capped at 0 and 100: values below and above get the edge colour. The edge class is
+thus "x ≤ 0" or "x ≥ 100" — the limit itself belongs to it, because `oob_squish`
+leaves it in place and pulls everything beyond it there. The legend is labelled
+accordingly, and a whisker beside the bar shows how far the data actually reach.
+
+```{r}
+ras() + scale_fill_capped(limits = c(0, 100))
+```
+
+## Capping one side only
+
+`NA` leaves that side open — then there is neither "≤"/"≥" nor a whisker there.
+
+```{r}
+ras() + scale_fill_capped(limits = c(0, NA))
+```
+
+## Limits as quantiles
+
+`probs` is computed across all data mapped to this scale, including all facets.
+
+```{r}
+ras() + scale_fill_capped(probs = c(0.02, 0.98))
+```
+
+A single number stands for `c(p, 1 - p)`; `NA` caps only one end:
+
+```{r}
+ras() + scale_fill_capped(probs = 0.05)
+ras() + scale_fill_capped(probs = c(NA, 0.98))
+```
+
+`limits` and `probs` are mutually exclusive: fixed limits, or limits from the data —
+not both.
+
+## Palettes
+
+A name from `grDevices::hcl.pals()`:
+
+```{r}
+ras() + scale_fill_capped(limits = c(0, 100), palette = "Zissou 1")
+```
+
+A colour vector, here with `values` to shift the midpoint of a diverging palette:
+
+```{r}
+ras() + scale_fill_capped(
+  limits  = c(0, 100),
+  palette = c("#2166AC", "#F7F7F7", "#B2182B"),
+  values  = c(0, 0.35, 1)
+)
+```
+
+A palette function `f(n)`, and a reversed palette:
+
+```{r}
+ras() + scale_fill_capped(limits = c(0, 100), palette = scales::pal_viridis(option = "A"))
+ras() + scale_fill_capped(limits = c(0, 100), palette = "YlOrRd", direction = -1)
+```
+
+## Binned
+
+```{r}
+ras() + scale_fill_capped_b(limits = c(0, 100), n.breaks = 5)
+```
+
+With custom class boundaries, a palette with exactly as many colours as classes is used
+as it is, not interpolated:
+
+```{r}
+ras() + scale_fill_capped_b(
+  limits  = c(0, 100),
+  breaks  = c(20, 40, 60, 80),
+  palette = c("#2C7BB6", "#ABD9E9", "#FFFFBF", "#FDAE61", "#D7191C")
+)
+```
+
+## Discrete
+
+Capping and whiskers mean nothing for categories; the discrete variant is the shared
+frame around the same palette logic, so a set of figures can use one palette source.
+
+```{r}
+#| fig.height: 3
+dd <- data.frame(g = LETTERS[1:5], v = c(3, 5, 2, 8, 4))
+ggplot(dd, aes(g, v, fill = g)) + geom_col() +
+  scale_fill_capped_d(palette = "Zissou 1") + theme_bw()
+```
+
+## Colour instead of fill, and several aesthetics
+
+```{r}
+pts <- d[d$x %% 3 == 0 & d$y %% 3 == 0, ]
+
+ggplot(pts, aes(x, y, colour = z)) +
+  geom_point(size = 2) +
+  scale_colour_capped(limits = c(0, 100)) + theme_bw()
+
+# both aesthetics on one scale
+ggplot(pts, aes(x, y, colour = z, fill = z)) +
+  geom_point(size = 3, shape = 21) +
+  scale_capped(aesthetics = c("colour", "fill"), limits = c(0, 100)) + theme_bw()
+```
+
+## Horizontal legend
+
+```{r}
+#| fig.height: 4
+ras() + scale_fill_capped(limits = c(0, 100)) +
+  theme(legend.position = "bottom")
+```
+
+## The whisker
+
+The whisker is built like a boxplot's: a stem from the bar edge outward, and a cross
+stroke marking the extreme value.
+
+```{r}
+ras() + scale_fill_capped(
+  limits            = c(0, 100),
+  whisker_gap       = unit(4, "mm"),                       # fixed gap
+  whisker_width     = 0.6,                                 # fraction of bar width
+  whisker_colour    = "grey30",
+  whisker_linewidth = 0.8,
+  whisker_labels    = scales::label_number(accuracy = 1, suffix = " ug/m3")
+)
+```
+
+No stem — just the cross stroke, free-standing:
+
+```{r}
+ras() + scale_fill_capped(limits = c(0, 100), whisker_stem = FALSE)
+```
+
+Only "≤"/"≥" without whiskers, or only whiskers without "≤"/"≥":
+
+```{r}
+ras() + scale_fill_capped(limits = c(0, 100), whiskers = FALSE)
+ras() + scale_fill_capped(limits = c(0, 100), cap = FALSE)
+```
+
+The shorthand "<"/">" instead of the accurate "≤"/"≥". The limit belongs to the edge
+class (`oob_squish` leaves it in place and pulls everything beyond it there), so
+`include_cap_val = FALSE` drops that information:
+
+```{r}
+ras() + scale_fill_capped(limits = c(0, 100), include_cap_val = FALSE)
+```
+
+## Arguments passed through to ggplot2
+
+`name`, `breaks`, `labels` and the guide's own settings work as in any ggplot2 scale:
+
+```{r}
+#| fig.height: 4.5
+ras() + scale_fill_capped(
+  limits = c(0, 100),
+  name   = "NO2\n(ug/m3)",
+  breaks = seq(0, 100, 20),
+  labels = scales::label_number(big.mark = "'"),
+  guide  = guide_colourbar_capped(
+    theme = theme(legend.key.height = unit(3, "cm")),
+    reverse = FALSE
+  )
+)
+```
+
+On a transformed scale the cap and whisker labels are back-transformed:
+
+```{r}
+dl <- transform(d, z = 10^((z + 50) / 60))
+ggplot(dl, aes(x, y, fill = z)) + geom_raster() + coord_fixed() + theme_bw() +
+  scale_fill_capped(limits = c(1, 1000), transform = "log10")
+```
+
+## Facets
+
+Quantile limits are computed jointly across all facets, so every panel uses the same
+colours for the same values:
+
+```{r}
+#| fig.width: 7
+df <- rbind(transform(d, f = "North"), transform(d, f = "South", z = d$z * 1.4))
+ggplot(df, aes(x, y, fill = z)) + geom_raster() + facet_wrap(~f) +
+  scale_fill_capped(probs = c(0.02, 0.98), palette = "Batlow") +
+  coord_fixed() + theme_bw()
+```
+
+## Back to ggplot2's default behaviour
+
+`guide = "colourbar"` switches off the cap labels and whiskers; the colour capping
+(`oob = squish`) stays:
+
+```{r}
+ras() + scale_fill_capped(limits = c(0, 100), guide = "colourbar")
+```
+
+`oob = scales::oob_censor` makes it an entirely ordinary scale: values outside the
+limits become `na.value`. Then there is no edge class left, and "≤"/"≥" and the
+whiskers disappear on their own — they would otherwise claim something false.
+
+```{r}
+ras() + scale_fill_capped(limits = c(0, 100), oob = scales::oob_censor)
+```

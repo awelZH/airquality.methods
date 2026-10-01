@@ -1,0 +1,395 @@
+---
+title: "Polar maps: wind roses at their true place, on a swisstopo basemap"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Polar maps: wind roses at their true place, on a swisstopo basemap}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+#| include: false
+has_openair <- requireNamespace("openair", quietly = TRUE)
+# The basemap is fetched from the swisstopo web map service; without network
+# (or without png) those chunks are shown but not run.
+has_basemap <- has_openair &&
+  requireNamespace("png", quietly = TRUE) &&
+  requireNamespace("curl", quietly = TRUE) && curl::has_internet()
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6.5, fig.height = 6,
+                      eval = has_openair)
+```
+
+```{r}
+#| message: false
+#| warning: false
+library(airquality.methods)
+library(ggplot2)
+library(openair)
+library(dplyr)
+```
+
+`polar_map()` places polar plots (`vignette("polar-plots")`) at the true LV95
+coordinates of their sites, optionally over a swisstopo basemap. It is meant for a
+monitoring network: one rose per site, all on one ruler, so a ring is the same wind
+speed everywhere and a single key rose describes them all.
+
+## Test data
+
+The site coordinates are those of eight sites of an ultrafine particle network in
+Kloten (published OGD metadata), because a basemap needs real LV95 metres to sit under.
+The measurements are openair's `mydata` (Marylebone Road, London), one year per site —
+eight genuinely different roses that say nothing about Kloten, but run from a package
+dataset.
+
+**Careful with the column names.** Here `x_lv95` is the **easting** and `y_lv95` the
+**northing**; the letters invert the Swiss E/N convention. `polar_map()` does not guess
+column names for exactly this reason — `east` and `north` name them, and a transposed
+pair is an error, not a map of the wrong place.
+
+```{r}
+sites <- data.frame(
+  site   = c("B1", "A4", "C0", "B2", "B3", "A1", "A3", "A2"),
+  x_lv95 = c(2687216.0, 2686274.5, 2688846.2, 2686979.8,
+             2686836.8, 2686115.0, 2686371.0, 2686332.5),
+  y_lv95 = c(1257939.9, 1256170.2, 1257367.6, 1256701.4,
+             1255717.6, 1257708.3, 1256638.8, 1257197.6)
+)
+
+d <- bind_rows(Map(
+  function(s, yr) transform(
+    selectByDate(mydata, year = yr)[, c("date", "ws", "wd", "nox")], site = s),
+  sites$site, 1998:2005
+))
+```
+
+## The minimal call
+
+`x` is one long data frame with a `site` column plus the usual u/v/z — the same
+"bind the rows, label them" idiom as for several statistics in `vignette("polar-plots")`,
+here the label is a place. A named list works directly too.
+
+```{r}
+per <- lapply(split(d, d$site), polar_bin, "nox", res = 1, min_n = 5)
+polar_map(per, sites)
+
+m <- bind_rows(per, .id = "site")
+p <- polar_map(m, sites)
+```
+
+`polar_map()` reports the radius it chose and why: the largest at which no two roses
+touch, here set by the two closest sites (A3 and A4, 478 m apart), with the compass
+margin of the grid included.
+
+## `radius`: how big is a rose
+
+`radius` is the outer ring in metres on the ground. The drawn footprint is
+`radius * (1 + grid$expand)`, because the compass letters sit out in that margin — that
+factor is part of the arithmetic.
+
+```{r}
+polar_map(m, sites, radius = 150)
+```
+
+Asking for more than fits is allowed, and says so. On a regional overview that is often
+the right trade; `suppressWarnings()` if you mean it.
+
+```{r}
+polar_map(m, sites, radius = 400)
+```
+
+## One ruler for every rose
+
+`k = radius / r_max` is a single number for the whole map. A given ring is the same wind
+speed at every site, which is what makes the map comparable — and what lets one key rose
+describe it. So if one site has a long tail, do **not** rescale per site; clip all of
+them:
+
+```{r}
+polar_map(m, sites, r_max = 6, quiet = TRUE)     # everything above 6 m/s is dropped
+```
+
+Clipping drops whole cells, never rows: for sector data one row is a polygon vertex,
+and clipping row by row would leave slivers that are in the data nowhere.
+
+The scale is recorded on the plot, for annotations or checks:
+
+```{r}
+attr(p, "polar_map_scale")         # k (m per m/s), radius, r_out
+```
+
+## The basemap
+
+`bbox_lv95()` derives the extent from the sites (padded by the rose radius, rounded
+outward to whole metres); `basemap_swisstopo()` fetches one georeferenced PNG from the
+swisstopo web map service and caches it on disk.
+
+```{r}
+#| eval: !expr has_basemap
+#| dev: jpeg
+bb <- bbox_lv95(sites, radius = 200)
+bm <- basemap_swisstopo(bb, px = 1000)
+bm                                   # layer, extent, size, m/px, file
+
+polar_map(m, sites, basemap = bm, quiet = TRUE)
+```
+
+Resolution: `px` is pixels along the longer edge, `res` is metres per pixel. The other
+edge follows from the box, so the image is never stretched. There is deliberately no
+`dpi` argument — dpi means nothing without a physical figure size, which the server
+does not know.
+
+```{r}
+#| eval: false
+basemap_swisstopo(bb, px = 3000)
+basemap_swisstopo(bb, res = 1)       # 1 m/px
+```
+
+`bm$asp` is the aspect of the map; size the figure by it and nothing is letterboxed:
+
+```{r}
+#| eval: false
+ggsave("map.png", polar_map(m, sites, basemap = bm, quiet = TRUE),
+       width = 9, height = 9 / bm$asp + 0.9, dpi = 200, bg = "white")
+```
+
+Any named vector with `xmin`, `ymin`, `xmax`, `ymax` in LV95 works as a box —
+`sf::st_bbox()` of an LV95 object, or `bbox_zh_lv95` for the whole canton.
+
+## Which basemap layer
+
+`"colour"` (default) is the Landeskarte: it reads as a map, which is what a reader needs
+to place a rose in a town. `"grey"` is the quieter choice when the roses have to carry
+the figure alone — the colour map puts saturated forest green and motorway orange right
+where a sequential fill needs to be read. The magma default of the roses keeps its
+distance from those greens better than viridis would. `"image"` is aerial imagery.
+
+```{r}
+#| eval: !expr has_basemap
+#| dev: jpeg
+polar_map(m, sites, basemap = basemap_swisstopo(bb, layer = "grey", px = 1000, quiet = TRUE),
+          quiet = TRUE)
+polar_map(m, sites, basemap = basemap_swisstopo(bb, layer = "image", px = 1000, quiet = TRUE),
+          quiet = TRUE)
+```
+
+Any other WMS layer id is passed through untouched:
+
+```{r}
+#| eval: false
+basemap_swisstopo(bb, layer = "ch.swisstopo.pixelkarte-farbe-pk25.noscale")
+```
+
+## Pinning the basemap for a Quarto report
+
+`file` writes the PNG plus a `.pgw` world file, a `.prj` and a `.layer` beside it. Once
+that file exists it is read directly and no request is made — the first render populates
+it, and every later render (CI, a colleague's laptop, offline) reuses it byte for byte.
+The world file also makes it open correctly in QGIS.
+
+```{r}
+#| eval: !expr has_basemap
+#| dev: jpeg
+pin <- file.path(tempdir(), "basemap_example.png")
+bm  <- basemap_swisstopo(bb, px = 1000, file = pin, quiet = TRUE)
+list.files(tempdir(), pattern = "^basemap_example")
+```
+
+A pinned file wins over `layer`, `px` and `res`, and warns when they disagree with it.
+Caching is not just convenience: swisstopo's terms ask that the service not be queried
+at high intensity, and a report that re-renders often would. Refresh only when the
+extent or layer really changed:
+
+```{r}
+#| eval: false
+basemap_swisstopo(bb, file = pin, refresh = TRUE)
+```
+
+## The key rose and the scale bar
+
+The map has two rulers, and they measure different things: the rose radius is wind
+speed, map distance is metres. Both are labelled. The key rose is drawn with the same
+`k` as the data roses, so its rings are physically identical to theirs — not kept in
+sync, the same number used twice.
+
+```{r}
+polar_map(m, sites, decor = polar_map_decor(key = "topright"), quiet = TRUE)
+```
+
+It carries no heading by default, for the same reason the radial axis has no title: the
+unit is on every ring label already. Add one if the figure is read out of context.
+
+```{r}
+polar_map(m, sites, decor = polar_map_decor(key_title = "Windgeschwindigkeit"),
+          quiet = TRUE)
+```
+
+If the key lands on a site, `polar_map()` says so and names the free corners. It can be
+placed by hand (map coordinates), or dropped; the scale bar length is a round fraction of
+the map width unless set:
+
+```{r}
+#| eval: false
+polar_map(m, sites, decor = polar_map_decor(key = c(2688940, 1255850)))
+polar_map(m, sites, decor = polar_map_decor(key = FALSE))
+polar_map(m, sites, decor = polar_map_decor(scalebar = FALSE))
+```
+
+```{r}
+polar_map(m, sites, decor = polar_map_decor(scalebar_length = 1000), quiet = TRUE)
+```
+
+Site labels and markers, and LV95 coordinates on the axes (off by default — the scale
+bar carries the distance, and the numbers are noise for most readers):
+
+```{r}
+polar_map(m, sites, decor = polar_map_decor(label_size = 2.2, label_gap = 0.3),
+          theme = theme_polar_map(axes = TRUE), quiet = TRUE)
+```
+
+## The polar grid on a map
+
+The same `polar_grid()` as in `polar_raster()`, and the same theme element behind it:
+`theme_polar_map()` sets `polar.grid` darker and slightly heavier than `theme_polar()`,
+because a plain-background grey disappears over a basemap.
+
+The compass is off on the roses by default here: eight sites times four letters is
+clutter, and every rose is oriented alike, so the key rose says it once. It can be turned
+back on per rose, and the key's compass is a setting of its own:
+
+```{r}
+polar_map(m, sites, grid = polar_grid(compass = TRUE), quiet = TRUE)
+polar_map(m, sites, decor = polar_map_decor(key_compass = "8"), quiet = TRUE)
+```
+
+Restyle the grid the theme way (through `theme =`, not `+ theme()`), and fix the rings so
+the key reads in round numbers:
+
+```{r}
+polar_map(m, sites, grid = polar_grid(rings = c(2, 4, 6, 8)),
+          theme = theme_polar_map(grid_colour = "grey10", grid_linetype = 1),
+          quiet = TRUE)
+```
+
+## Colour scales
+
+`...` goes to the default fill scale, exactly as in `polar_raster()`; the capped scale
+composes as usual (`vignette("capped-scales")`).
+
+```{r}
+polar_map(m, sites, limits = c(50, 400), name = "NOx (ppb)", quiet = TRUE)
+polar_map(m, sites, scale = scale_fill_capped(limits = c(50, 400), name = "NOx (ppb)"),
+          quiet = TRUE)
+```
+
+## Sectors instead of squares
+
+On a map, sectors are usually the better choice: they follow the structure of the data,
+so they leave no gaps for the basemap to shine through the middle of a rose, and they stay
+one polygon layer whatever the number of sites.
+
+```{r}
+sec <- bind_rows(lapply(split(d, d$site), polar_sector, "nox",
+                        wd_res = 15, ws_res = 1, min_n = 5), .id = "site")
+polar_map(sec, sites, quiet = TRUE)
+```
+
+A note on cell counts: a default `polarPlot()` grid has about 10 000 cells, and eight of
+them at 200 m radius on a 3.5 km map render at about 2 px per cell. The smoothing detail
+is invisible and you pay 80 000 cells for it. `polar_bin(res = 1)` or
+`polar_sector(wd_res = 15)` is the honest resolution.
+
+## A regional overview is a separate figure
+
+Add a ninth site 7 km to the east (and a ninth rose, from all of `mydata`):
+
+```{r}
+sites_all <- bind_rows(sites, data.frame(site = "D0", x_lv95 = 2693324, y_lv95 = 1258946))
+m_all <- bind_rows(m, transform(polar_bin(mydata, "nox", res = 1, min_n = 5), site = "D0"))
+```
+
+The problem is scale, not code. The cluster still pins the default radius at about
+200 m, but the map is now 7 km wide, so a rose is under 3 % of it — invisible. Two honest
+options: a representative subset at a radius that reads, or everything at a radius that
+overlaps in the cluster — knowingly.
+
+```{r}
+polar_map(filter(m_all, site %in% c("A3", "D0")),
+          filter(sites_all, site %in% c("A3", "D0")), radius = 800, quiet = TRUE)
+
+suppressWarnings(
+  polar_map(m_all, sites_all, radius = 500, decor = polar_map_decor(labels = FALSE),
+            quiet = TRUE)
+)
+```
+
+What does not work is one figure that is both. Make the detail map and the overview, and
+put them side by side.
+
+## The detail map, final form
+
+```{r}
+#| eval: !expr has_basemap
+#| dev: jpeg
+p <- polar_map(
+  sec, sites,
+  basemap = bm,
+  scale   = scale_fill_capped(limits = c(50, 400), name = "NOx (ppb)"),
+  decor   = polar_map_decor(key = "topright"),
+  quiet   = TRUE
+)
+p
+```
+
+In a Quarto report, the title and caption belong to the figure object rather than into
+the panel — `fig_meta()` attaches them without drawing them:
+
+```{r}
+#| eval: !expr has_basemap
+#| dev: jpeg
+p <- fig_meta(p, title = "NOx by wind direction and speed",
+              caption = "openair::mydata, one year per site.")
+fig_caption(p)
+```
+
+## Attribution
+
+swisstopo geodata are free to use **with attribution**. `polar_map()` adds
+"Kartengrundlage: © swisstopo" as the caption whenever a basemap is drawn; do not remove
+it from published figures. It comes from the basemap object, not from the decor, so a
+map without basemap carries no caption — there is nothing to attribute.
+
+```{r}
+#| eval: !expr has_basemap
+#| dev: jpeg
+bm$attribution
+polar_map(m, sites, basemap = bm, quiet = TRUE)$labels$caption
+is.null(polar_map(m, sites, quiet = TRUE)$labels$caption)
+```
+
+It can be reworded (an English report, say), but keep the source:
+
+```{r}
+#| eval: false
+polar_map(m, sites, basemap = bm,
+          decor = polar_map_decor(attribution = "Map data: © swisstopo"))
+```
+
+## A basemap and a scale bar under any LV95 ggplot
+
+`annotation_basemap()` and `annotation_scalebar()` work on their own — `polar_map()` is
+not required. Limit the panel to the same box the basemap covers, and the scale bar
+cannot drift out of it; `polar_map()` draws its scale bar with the very same function.
+
+```{r}
+#| eval: !expr has_basemap
+#| dev: jpeg
+ggplot(sites, aes(x_lv95, y_lv95)) +
+  annotation_basemap(bm) +
+  geom_point(size = 3, colour = "firebrick") +
+  geom_text(aes(label = site), nudge_y = 90, size = 3) +
+  coord_fixed(xlim = bb[c("xmin", "xmax")], ylim = bb[c("ymin", "ymax")],
+              expand = FALSE) +
+  annotation_scalebar(bb) +
+  theme_polar_map() +
+  labs(caption = bm$attribution)
+```

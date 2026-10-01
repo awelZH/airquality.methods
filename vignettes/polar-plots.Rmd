@@ -1,0 +1,456 @@
+---
+title: "Polar plots: concentration by wind direction and speed"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Polar plots: concentration by wind direction and speed}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r}
+#| include: false
+has_openair <- requireNamespace("openair", quietly = TRUE)
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 5.5, fig.height = 4.5,
+                      eval = has_openair)
+```
+
+```{r}
+#| message: false
+#| warning: false
+library(airquality.methods)
+library(ggplot2)
+library(openair)
+```
+
+A polar plot shows a concentration as a function of wind direction (angle) and wind
+speed (radius). `openair::polarPlot()` computes a smoothed surface and draws it with
+lattice; the functions here draw such surfaces — or unsmoothed cells binned straight
+from the data — as ggplot2 objects, so they can be themed, faceted, combined and
+placed on a map (`vignette("polar-maps")`).
+
+Two design decisions run through everything below:
+
+* The rose is drawn on a **Cartesian** panel with `coord_fixed()`, not with
+  `coord_polar()`. The cells already live in the wind-vector plane (u, v), and
+  `coord_polar()` would warp them.
+* Therefore the rings and spokes are layers, styled through a theme element of their
+  own, `polar.grid` — ggplot2's `panel.grid` would draw *straight* lines through the
+  rose.
+
+The examples use openair's `mydata` (Marylebone Road, London), which is why this
+vignette needs the openair package.
+
+```{r}
+d <- selectByDate(mydata, year = c(2003, 2004))
+```
+
+## The two entry points
+
+One call that computes and draws: `...` goes to `openair::polarPlot()`, `args` to
+`polar_raster()`.
+
+```{r}
+d |> polar_plot(pollutant = "nox")
+```
+
+Two steps — compute first, then draw. Worth it once the display is varied repeatedly,
+because the smoothing is the expensive part.
+
+```{r}
+pp <- polarPlot(d, pollutant = "nox", plot = FALSE)
+polar_raster(pp)
+```
+
+## Why the display arguments live in `args`
+
+`polarPlot()` already claims the names `limits`, `type` and `x`, each with a different
+meaning than here. A shared `...` would silently route them to the wrong place — hence
+the split:
+
+```{r}
+#| fig.width: 7
+d |> polar_plot(
+  pollutant = "nox",                       # -> polarPlot()
+  type      = "season",                    # -> polarPlot() (facets)
+  args      = list(limits = c(50, 250),    # -> colour scale
+                   name   = "NOx")
+)
+```
+
+A typo in `args` is reported instead of silently swallowed:
+
+```{r}
+#| error: true
+d |> polar_plot(pollutant = "nox", args = list(limmits = c(50, 250)))
+```
+
+## The colour scale
+
+The default is `scale_fill_viridis_c(option = "A")` (magma, a dark-to-light ramp that
+stays apart from the greens of a topographic basemap); `...` goes there.
+
+```{r}
+polar_raster(pp, name = "NOx")
+polar_raster(pp, limits = c(50, 250), name = "NOx")   # values outside -> grey
+polar_raster(pp, option = "A", direction = -1, name = "NOx")
+polar_raster(pp, trans = "log10", name = "NOx")
+```
+
+Any other ggplot2 fill scale can be supplied:
+
+```{r}
+polar_raster(pp, scale = scale_fill_distiller(palette = "RdYlBu", name = "NOx"))
+polar_raster(pp, scale = scale_fill_steps(low = "#FFFFCC", high = "#800026",
+                                          n.breaks = 6, name = "NOx"))
+```
+
+## The capped scale
+
+Capping is not built in, it composes from outside (`vignette("capped-scales")`). Two
+equivalent ways — the first stays silent, the second reports the usual "Scale for fill
+is already present".
+
+```{r}
+polar_raster(pp, scale = scale_fill_capped(limits = c(50, 250), name = "NOx"))
+polar_raster(pp) + scale_fill_capped(limits = c(50, 250), name = "NOx")
+```
+
+Cap only the top, take the limits from quantiles of the grid values, or bin:
+
+```{r}
+polar_raster(pp, scale = scale_fill_capped(limits = c(NA, 200), name = "NOx"))
+polar_raster(pp, scale = scale_fill_capped(probs = c(0.1, 0.9), name = "NOx"))
+polar_raster(pp, scale = scale_fill_capped_b(limits = c(50, 250), n.breaks = 5,
+                                             palette = "YlOrRd", direction = -1))
+```
+
+Inside the one-call wrapper the scale is an element of `args`:
+
+```{r}
+#| fig.width: 7
+d |> polar_plot(pollutant = "nox", type = "season",
+                args = list(scale = scale_fill_capped(limits = c(50, 250),
+                                                      name = "NOx")))
+```
+
+## Facets
+
+`polarPlot()`'s grouping column is named differently depending on the call
+(`default`, `season`, `variable`, ...) and is detected automatically. All facets share
+one colour scale.
+
+```{r}
+#| fig.width: 7
+pp_season <- polarPlot(d, pollutant = "nox", type = "season", plot = FALSE)
+polar_raster(pp_season, limits = c(50, 250), name = "NOx")
+```
+
+Two grouping columns at once. With pollutants at very different levels the weaker
+panels turn flat — one call per pollutant is then the better choice.
+
+```{r}
+#| fig.width: 7
+pp_two <- polarPlot(d, pollutant = c("nox", "so2"), type = "weekend", plot = FALSE)
+polar_raster(pp_two)
+```
+
+Faceting off (all groups on top of each other), or named explicitly:
+
+```{r}
+#| eval: false
+polar_raster(pp_season, facet = NA)
+polar_raster(pp_season, facet = ~season)
+```
+
+## The polar grid
+
+Everything that is not the surface is set in `polar_grid()`.
+
+```{r}
+polar_raster(pp, grid = polar_grid(rings = c(3, 6, 9, 12), spokes = seq(0, 330, 30)))
+polar_raster(pp, grid = polar_grid(compass = "8"))                      # eight points
+polar_raster(pp, grid = polar_grid(compass = c(Luv = 225, Lee = 45)))   # own marks
+```
+
+The grid below the surface (visible only outside the data lobe), a more restrained
+grid, and more margin for the compass letters:
+
+```{r}
+polar_raster(pp, grid = polar_grid(below = TRUE))
+polar_raster(pp, grid = polar_grid(outer = FALSE, spokes = NULL, colour = "grey70"))
+polar_raster(pp, grid = polar_grid(expand = 0.3, compass_size = 4))
+```
+
+The grid is themed, not just parameterised. `polar_grid()` reads the theme element
+`polar.grid` whenever `colour`, `linewidth` or `linetype` are left at `NULL`:
+
+```{r}
+polar_raster(pp, theme = theme_polar(grid_colour = "grey70", grid_linetype = 1))
+
+polar_raster(pp, theme = theme_polar() +
+                   theme(polar.grid = element_line(colour = "white", linetype = 1,
+                                                   linewidth = 0.2)))
+```
+
+An explicit argument beats the theme, field by field — this is grey20, dashed, 0.25:
+
+```{r}
+polar_raster(pp, grid = polar_grid(colour = "grey20"),
+             theme = theme_polar(grid_colour = "white", grid_linewidth = 1))
+```
+
+One caveat: the style is read when the plot is *built*, so the theme has to arrive
+through `theme =`. A `+ theme(polar.grid = ...)` added afterwards comes too late — the
+layers already exist.
+
+## The radial axis
+
+It is the plot's ordinary y-axis: the title via `axis_title`, everything else via
+`theme()`. `guide_axis(cap = "both")` trims the line to the range up to the largest
+ring. The unit sits on every break by default (`axis_unit = "m/s"`), so there is no
+axis title unless asked for.
+
+```{r}
+polar_raster(pp, axis_title = "wind speed (m/s)", axis_unit = NULL)
+
+polar_raster(pp) +
+  theme(axis.text.y  = element_text(colour = "firebrick", face = "bold", size = 11),
+        axis.ticks.y = element_line(colour = "firebrick", linewidth = 0.6),
+        axis.line.y  = element_line(colour = "firebrick", linewidth = 0.6))
+```
+
+Another unit, none at all, or no axis:
+
+```{r}
+polar_raster(pp, axis_unit = "km/h")
+polar_raster(pp, axis_labels = FALSE)
+```
+
+Or moved into the panel, from the centre outwards. ggplot2 draws axes in the gtable
+*around* the panel and nowhere else, so this is no longer an axis in ggplot's sense but
+one layer: a label per ring, sitting on its ring. No axis line and no ticks — the rings
+already are the ticks. What survives is the rest: the same rings as the grid, the same
+break labels as the key rose of `polar_map()`, and `axis.text.y` for the styling. What
+is gone is `guide_axis()` and `axis_title`.
+
+```{r}
+polar_raster(pp, axis_labels = "centre", theme = theme_polar(axis_colour = "grey10"))
+polar_raster(pp, axis_labels = "centre", axis_bearing = 135)
+```
+
+The centred axis is the better choice when the figure is small or the left margin is
+needed elsewhere — and it is what the key rose of `polar_map()` does, for the same
+reason: there, the y-axis is the northing.
+
+## Theme and labelling
+
+```{r}
+polar_raster(pp, theme = theme_polar(base_size = 14)) +
+  labs(title = "NOx by wind direction and speed")
+polar_raster(pp) + theme(legend.position = "bottom")
+```
+
+## Recolouring without recomputing
+
+`polar_plot()` carries the grid data as an attribute and `polar_data()` retrieves it,
+which saves the smoothing step.
+
+```{r}
+#| fig.width: 7
+p <- d |> polar_plot(pollutant = "nox", type = "season",
+                     args = list(limits = c(50, 250)))
+
+polar_raster(polar_data(p), option = "C")
+polar_raster(polar_data(p), scale = scale_fill_capped(probs = 0.02),
+             grid = polar_grid(compass = "8"))
+```
+
+## Other polarPlot() statistics
+
+Anything `polarPlot()` delivers as a u/v/z grid can be drawn, and its smoothing
+arguments (`k`, ...) go through `...`.
+
+```{r}
+d |> polar_plot(pollutant = "so2", statistic = "cpf", percentile = 90,
+                args = list(limits = c(0.1, 0.5), name = "CPF", option = "B"))
+d |> polar_plot(pollutant = "nox", k = 50)
+```
+
+## Without smoothing: `polar_bin()`
+
+Instead of smoothing a surface, the measurements are sorted into square cells of the
+wind-vector plane. Nothing is interpolated — empty cells stay empty. The result goes
+straight into `polar_raster()`.
+
+```{r}
+d |> polar_bin("nox", res = 2) |> polar_raster(name = "NOx")
+```
+
+On choosing `res`: wind directions here come in 10-degree steps. Two adjacent
+directions are about r · 10 · π/180 apart — at r = 10 that is 1.75. A finer grid leaves
+gaps there and the image frays into rays. That is not a bug, it is the resolution of the
+raw data:
+
+```{r}
+d |> polar_bin("nox", res = 0.5) |> polar_raster(name = "NOx")   # fine inside, rays outside
+```
+
+Thinly populated cells are dropped with `min_n` — otherwise single measurements show up
+as strong blotches.
+
+```{r}
+d |> polar_bin("nox", res = 1, min_n = 10) |> polar_raster(name = "NOx")
+```
+
+Other statistics; `"n"` shows the data density itself, and any function works:
+
+```{r}
+d |> polar_bin("nox", res = 1, statistic = "median", min_n = 5) |>
+  polar_raster(name = "Median")
+d |> polar_bin("nox", res = 1, statistic = "n") |>
+  polar_raster(name = "Count", trans = "log10")
+d |> polar_bin("nox", res = 1, min_n = 20,
+               statistic = function(x) quantile(x, 0.95)) |>
+  polar_raster(name = "P95")
+```
+
+`polar_statfun()` turns a `statistic` into the function the binning uses, so an
+analysis that condenses values per direction on its own can mean exactly the same by
+`"median"`.
+
+Grouping as with `polarPlot()` — derived types go through `openair::cutData()` — and a
+limited radius with a capped scale:
+
+```{r}
+#| fig.width: 7
+d |> polar_bin("nox", res = 1, min_n = 5, type = "season") |>
+  polar_raster(name = "NOx")
+```
+
+```{r}
+d |> polar_bin("nox", res = 1, min_n = 5, ws_max = 8) |>
+  polar_raster(scale = scale_fill_capped(limits = c(50, 250), name = "NOx"))
+```
+
+Binning rounds half away from zero (`round_off()`), never with `round()`. Wind data come
+in fixed steps, so a value on a cell boundary is not a rare accident but half the
+dataset, and round-half-to-even would give one cell of every pair three times the
+observations of the other.
+
+`polar_raster()` draws sharp cells by default: invented smoothness would be misleading
+for aggregated cells. Interpolation can be forced:
+
+```{r}
+d |> polar_bin("nox", res = 1) |> polar_raster(interpolate = TRUE)
+```
+
+## Sectors instead of squares: `polar_sector()`
+
+Here the cells are ring segments of wind direction and speed class. They follow the
+structure of the data and therefore leave no gaps — unlike the square grid.
+
+```{r}
+d |> polar_sector("nox", wd_res = 10, ws_res = 1) |> polar_raster(name = "NOx")
+d |> polar_sector("nox", wd_res = 30, ws_res = 2) |> polar_raster(name = "NOx")
+```
+
+`wd_res` must divide 360 (5, 10, 15, 22.5, 30, 45, ...). The statistics, facets and
+scales work as for `polar_bin()`:
+
+```{r}
+d |> polar_sector("nox", wd_res = 22.5, ws_res = 1.5, min_n = 10) |>
+  polar_raster(name = "NOx")
+d |> polar_sector("nox", statistic = "n", min_n = 20) |>
+  polar_raster(name = "Count", trans = "log10")
+d |> polar_sector("nox", min_n = 10) |>
+  polar_raster(scale = scale_fill_capped(limits = c(50, 250), name = "NOx"))
+```
+
+## Any u/v grid
+
+The input does not have to be an openair object — a data frame with u, v and a value is
+enough, and the column names are free.
+
+```{r}
+grid_df <- as.data.frame(pp$data)
+names(grid_df)[names(grid_df) == "z"] <- "conc"
+polar_raster(grid_df, z = "conc", limits = c(50, 250))
+```
+
+## Saving
+
+The surface is a raster, not a cloud of points — in vector output roughly fourteen
+times smaller than openair's own plot.
+
+```{r}
+#| eval: false
+ggsave("polar_nox.pdf", polar_raster(pp, limits = c(50, 250)),
+       width = 6, height = 5, device = grDevices::cairo_pdf)
+ggsave("polar_nox.png", polar_raster(pp, limits = c(50, 250)),
+       width = 6, height = 5, dpi = 300)
+```
+
+## One pollutant, several statistics side by side
+
+"Which statistic" is not a data column, so it cannot be a `type`. Instead, call once per
+statistic, label each result, and bind the rows; `polar_raster()` then facets on the
+label like on any other grouping column.
+
+```{r}
+#| fig.width: 7
+#| message: false
+metrics <- dplyr::bind_rows(
+  polarPlot(d, pollutant = "nox", statistic = "mean",
+            plot = FALSE)$data |> dplyr::mutate(metric = "mean"),
+  polarPlot(d, pollutant = "nox", statistic = "median",
+            plot = FALSE)$data |> dplyr::mutate(metric = "median"),
+  polarPlot(d, pollutant = "nox", statistic = "percentile", percentile = 90,
+            plot = FALSE, auto.text = FALSE)$data |> dplyr::mutate(metric = "p90")
+)
+polar_raster(metrics, name = "NOx")
+```
+
+The same pattern works for unsmoothed cells:
+
+```{r}
+#| fig.width: 7
+metrics_bin <- dplyr::bind_rows(
+  polar_bin(d, "nox", res = 1, min_n = 5, statistic = "mean") |>
+    dplyr::mutate(metric = "mean"),
+  polar_bin(d, "nox", res = 1, min_n = 5, statistic = "median") |>
+    dplyr::mutate(metric = "median")
+)
+polar_raster(metrics_bin, name = "NOx")
+```
+
+## A key rose for a facetted figure: `polar_key()`
+
+A panel of many roses has a problem a single rose does not: compass letters and radial
+labels are the same on every panel, and they are drawn over the very cells one wants to
+read. On a map, `polar_map()` solves this with one key rose off to the side;
+`polar_key()` is that key as a plot of its own.
+
+It cannot describe something else: it shares the rings and grid layers with
+`polar_raster()` and its ring labels with the key rose of `polar_map()`. Pass the data
+the panels are drawn from — the outer radius comes from it (a number works too).
+
+```{r}
+#| fig.width: 8
+#| fig.height: 5
+panels <- polar_raster(pp_season, grid = polar_grid(compass = FALSE),
+                       axis_labels = "none", name = "NOx")
+key <- polar_key(pp_season)
+
+if (requireNamespace("patchwork", quietly = TRUE)) {
+  patchwork::wrap_plots(panels, key, widths = c(2, 1))
+}
+```
+
+The compass can be lettered in any language, and `title` gives the key a heading:
+
+```{r}
+#| fig.width: 3
+#| fig.height: 3
+polar_key(pp_season, compass = c(N = 0, O = 90, S = 180, W = 270), title = "Wind")
+polar_key(6, compass = "8", axis_unit = NULL, n_labels = Inf)
+```

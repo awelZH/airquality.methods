@@ -112,39 +112,69 @@ test_that("annotation_basemap validates its input", {
   expect_error(annotation_basemap(list()), "swisstopo_basemap")
 })
 
-test_that("basemap_swisstopo reaches the service", {
-  skip_on_cran()
+# --- the request path, against a simulated service ----------------------------
+# No test touches the network: download.file() is the one place the request
+# leaves the package, so it is replaced by a fake WMS that answers with a PNG
+# of exactly the requested size and records every URL it was asked for. The
+# disk cache goes to a temporary directory, never the user's.
+
+local_fake_wms <- function(env = parent.frame()) {
+  withr::local_envvar(R_USER_CACHE_DIR = withr::local_tempdir(.local_envir = env),
+                      .local_envir = env)
+  requests <- new.env()
+  requests$urls <- character()
+  testthat::local_mocked_bindings(
+    download.file = function(url, destfile, ...) {
+      requests$urls <- c(requests$urls, url)
+      w <- as.integer(sub(".*&WIDTH=([0-9]+).*", "\\1", url))
+      h <- as.integer(sub(".*&HEIGHT=([0-9]+).*", "\\1", url))
+      png::writePNG(array(0.5, dim = c(h, w, 3)), destfile)
+      0L
+    },
+    .package = "utils", .env = env)
+  requests
+}
+
+test_that("basemap_swisstopo fetches once and then serves from the cache", {
   skip_if_not_installed("png")
-  skip_if_offline("wms.geo.admin.ch")
+  wms <- local_fake_wms()
 
   bb <- bbox_lv95(fake_sites(), radius = 200)
   bm <- basemap_swisstopo(bb, px = 256, quiet = TRUE)
 
+  expect_length(wms$urls, 1L)
+  expect_match(wms$urls, "LAYERS=ch.swisstopo.pixelkarte-farbe", fixed = TRUE)
+  expect_match(wms$urls, paste0("BBOX=", paste(bb[c("xmin", "ymin", "xmax", "ymax")],
+                                              collapse = ",")), fixed = TRUE)
   expect_s3_class(bm, "swisstopo_basemap")
   expect_s3_class(bm$raster, "nativeRaster")     # compact, not 3.6M strings
   expect_equal(dim(bm$raster)[2], bm$width)
+  expect_equal(max(bm$width, bm$height), 256)
   expect_equal(bm$attribution, "Kartengrundlage: \u00a9 swisstopo")
   expect_s3_class(annotation_basemap(bm), "ggproto")
 
   # A second call must be served from the cache, not the network.
   expect_message(basemap_swisstopo(bb, px = 256), "cache")
+  expect_length(wms$urls, 1L)
 })
 
-test_that("a pinned file is read back without touching the network", {
-  skip_on_cran()
+test_that("a pinned file is written with its sidecars and read back without a request", {
   skip_if_not_installed("png")
-  skip_if_offline("wms.geo.admin.ch")
+  wms <- local_fake_wms()
 
   dir <- withr::local_tempdir()
   f   <- file.path(dir, "bm.png")
   bb  <- bbox_lv95(fake_sites(), radius = 200)
 
-  basemap_swisstopo(bb, px = 256, file = f, quiet = TRUE)
+  basemap_swisstopo(bb, px = 256, layer = "grey", file = f, quiet = TRUE)
   expect_true(file.exists(f))
   expect_true(file.exists(file.path(dir, "bm.pgw")))
   expect_true(file.exists(file.path(dir, "bm.prj")))
+  expect_equal(.basemap_pinned_layer(f), "ch.swisstopo.pixelkarte-grau")
+  expect_length(wms$urls, 1L)
 
-  again <- basemap_swisstopo(bb, px = 256, file = f, quiet = TRUE)
+  again <- basemap_swisstopo(bb, px = 256, file = f, cache = FALSE, quiet = TRUE)
+  expect_length(wms$urls, 1L)                    # the pin, not the service
   expect_s3_class(again, "swisstopo_basemap")
   expect_equal(unname(again$bbox[c("xmin", "ymin", "xmax", "ymax")]),
                unname(bb[c("xmin", "ymin", "xmax", "ymax")]), tolerance = 1)

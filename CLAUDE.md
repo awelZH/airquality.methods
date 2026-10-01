@@ -338,10 +338,12 @@ caught this because the suite always calls something `stars::` first.
 * **Errors:** `cli::cli_abort()`/`cli_warn()` with a cause line and an actionable hint, validated at
   the function boundary.
 * **Tests:** testthat 3e, tests first. The network is stubbed via `local_mocked_bindings()` on
-  `fetch_to_file()`/`read_asset_stars()` or `httr2::with_mocked_responses()`. Exception, taken over
-  with the basemap from `ufp25` (0.7.0): two tests in `test-basemap-swisstopo.R` ("reaches the
-  service", "a pinned file is read back") call the swisstopo WMS when online and skip offline; the
-  offline path is tested without network. Coverage was 93.6 % before 0.6.0, not re-measured.
+  `fetch_to_file()`/`read_asset_stars()` or `httr2::with_mocked_responses()`; no test touches the
+  network. The basemap's boundary is `utils::download.file()`: `local_fake_wms()` in
+  `test-basemap-swisstopo.R` answers with a PNG of the requested size, records every request (so
+  "served from the cache" is asserted as "no second request"), and moves the disk cache to a
+  temporary directory via `R_USER_CACHE_DIR`. (The two tests taken over from `ufp25` called the
+  live WMS when online; replaced 2026-10-01.) Coverage 93.4 % (2026-10-01).
 * **Packages:** `pak` for installation, `renv` for the environment.
 
 ## Where to look next

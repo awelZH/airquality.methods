@@ -246,8 +246,8 @@ test_that("bg accepts NULL as no plaque and refuses a vector", {
 
 # --- the scale bar, on any map ----------------------------------------------
 # It is drawn by annotation_scalebar() and only *configured* by
-# polar_map_decor(), so the map in scripts/02_source_direction.R -- a plain
-# ggplot -- gets the identical bar. These tests assert both ends of that.
+# polar_map_decor(), so a plain ggplot map over the same extent gets the
+# identical bar. These tests assert both ends of that.
 
 # The bar itself is the one-row segment layer; the caps are the two-row one,
 # and on a polar_map the grid spokes are segments too. Reading the last

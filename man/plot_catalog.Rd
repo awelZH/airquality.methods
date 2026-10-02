@@ -4,35 +4,48 @@
 \alias{plot_catalog}
 \title{Collect plots in a catalog}
 \usage{
-plot_catalog(figures, plot, names_to = character())
+plot_catalog(figures, plot = NULL, names_to = character())
 }
 \arguments{
-\item{figures}{A plot, a list of plots named by parameter or year, or a list of such lists (names of
-the outer list = parameter, of the inner lists = year). Plots are usually ggplots, but any object
+\item{figures}{A plot, a named list of plots, or a list of such lists, one level per element of
+\code{names_to} (names of the outer list = \code{names_to[1]}). Plots are usually ggplots, but any object
 works.}
 
-\item{plot}{Name of the plot, e.g. "distribution_histogram".}
+\item{plot}{Name of the plot, e.g. "distribution_histogram". \code{NULL} when the names of a list level
+are the plot names (\code{names_to} contains \code{"plot"}).}
 
-\item{names_to}{What the names of the list levels are: \code{character()} for a single plot, \code{"parameter"},
-\code{"year"} or \code{c("parameter", "year")}.}
+\item{names_to}{What the names of the list levels are, outermost first: \code{character()} for a single
+plot, otherwise any of \code{"plot"}, \code{"parameter"}, \code{"year"} or a key of the caller's own (e.g.
+\code{c("parameter", "year")}, \code{c("site", "daypart")}). Each key once; \code{"figure"} is reserved.}
 }
 \value{
-Tibble with \code{plot}, \code{parameter} and \code{year} (character, \code{NA} if not applicable) and the list
-column \code{figure}, one row per plot. Stops with an error of class \code{plot_catalog_error} if a list
-level is not named.
+Tibble with \code{plot}, \code{parameter}, \code{year}, the caller's own keys (all character, \code{NA} if not
+applicable) and the list column \code{figure}, one row per plot. Stops with an error of class
+\code{plot_catalog_error} if a list level is not named, a key is repeated or \code{"figure"}, or the plot
+name is given neither or twice (as \code{plot} and as \code{"plot"} in \code{names_to}).
 }
 \description{
 The caller says what the names of the list mean, so the catalog does not guess its structure. Catalogs
 of several plots are combined with \code{\link[dplyr:bind_rows]{dplyr::bind_rows()}}.
+}
+\details{
+Every catalog has the columns \code{plot}, \code{parameter} and \code{year}, so that catalogs built for different
+plots bind and are searched alike. Any other key named in \code{names_to} (a site, a time of day, a
+scenario) becomes a column of its own; \code{\link[dplyr:bind_rows]{dplyr::bind_rows()}} fills it with \code{NA} for the plots that do
+not have it.
 }
 \examples{
 p <- ggplot2::ggplot()
 catalog <- dplyr::bind_rows(
   plot_catalog(p, "overview"),
   plot_catalog(list(NO2 = p, PM10 = p), "timeseries", names_to = "parameter"),
-  plot_catalog(list(NO2 = list(`2023` = p, `2024` = p)), "map", names_to = c("parameter", "year"))
+  plot_catalog(list(NO2 = list(`2023` = p, `2024` = p)), "map", names_to = c("parameter", "year")),
+  plot_catalog(list(A1 = list(Tag = p, Nacht = p)), "rose", names_to = c("site", "daypart"))
 )
 catalog
+
+# a flat list whose names are the plot names
+plot_catalog(list(distance = p, windrose = p), names_to = "plot")
 
 }
 \seealso{

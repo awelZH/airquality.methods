@@ -11,7 +11,7 @@ tasks**, in a tidy file structure, properly documented.
 
 ## What this repo is
 
-An R package (version 0.7.1, GPL >= 3, renv-managed, R >= 4.2). It is *not* an analysis repo: no
+An R package (version 0.8.0, GPL >= 3, renv-managed, R >= 4.2). It is *not* an analysis repo: no
 report logic, no hard-coded project paths, no dataset-specific pipelines. Everything that only makes
 sense inside one specific analysis belongs to `airquality`.
 
@@ -42,7 +42,7 @@ Layout of `R/`:
 | `zzz.R` | `.onLoad()`: registers the theme element `polar.grid` |
 | `municipalities.R` | geolion municipality map: `drop_foreign_enclaves()`, `assign_municipalities()`; STATPOP collector pixels back to their municipality: `noloc_from_aligned()`, `redistribute_noloc()` |
 | `ndep.R` | classes of the nitrogen deposition analysis (Ostluft conventions): `recode_ecosystems()`, `classify_ostluft_siteclass()`, `classify_nh3_emission()`, `classify_estimated()`, `classify_frac_estimated()`, `derive_source_category()` |
-| `plot-catalog.R` | plots of a Quarto report in one table: `plot_catalog()`, `catalog_entries()`, `get_plot()` (error class `plot_catalog_error`); `print_tabset()` |
+| `plot-catalog.R` | plots of a Quarto report in one table, keyed by `parameter`, `year` or keys of the caller's own: `plot_catalog()`, `catalog_entries()`, `get_plot()` (error class `plot_catalog_error`); `print_tabset()` |
 | `utils.R` | `check_names()` (exported, optional error `class`), `round_off()`, `write_local_csv()` (creates directories; appending to a new file writes the header) |
 | `deprecated.R` | wrappers keeping `airquality` running during migration |
 
@@ -207,6 +207,20 @@ decisions 1–17). Each of them cost a debugging round there:
 **Moved code keeps its base `lapply`/`vapply`.** Code taken over from `ufp25` is not restyled to
 purrr and `\(x)`: a restyle is a behaviour risk without a gain, and `ufp25` checks every one of its
 figures for identity across a move. New code here follows the conventions below.
+
+**16. The keys of a plot catalog are the caller's** (0.8.0, 2026-10-02, asked for by `ufp25`).
+`plot_catalog(names_to = )` took only `"parameter"` and `"year"`, the two dimensions of the Ostluft
+annual reports in `airquality`. A campaign report keys its figures by other things (site, time of
+day, wind regime) or by nothing but the figure's name. Now `names_to` names any key: an own key
+becomes a character column between `year` and `figure`, `get_plot()`/`catalog_entries()` filter on
+it by name through `...` (`get_plot(cat, "rose", site = "A1")`), and `names_to = "plot"` takes the
+plot names from the list (`plot_catalog(FIGURES, names_to = "plot")` for a script's flat list of
+figures). `parameter` and `year` stay as columns of every catalog and as positional arguments, so
+`airquality`'s calls (`get_plot(plots, "map", "NO2", 2021)`, `entries$year`) work unchanged. A key
+in `...` that is no column, or is unnamed, is an error rather than a filter that matches nothing,
+and the "which plots exist" error lists the combinations over the keys the plot actually has.
+`dplyr::bind_rows()` of catalogs with different own keys puts the later keys after `figure`;
+column order carries no meaning.
 
 ## Scope decisions (deliberate, not technical limits)
 

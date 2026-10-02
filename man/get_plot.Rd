@@ -4,7 +4,7 @@
 \alias{get_plot}
 \title{Get one plot from a plot catalog}
 \usage{
-get_plot(catalog, plot, parameter = NULL, year = NULL)
+get_plot(catalog, plot, parameter = NULL, year = NULL, ...)
 }
 \arguments{
 \item{catalog}{Plot catalog as built by \code{\link[=plot_catalog]{plot_catalog()}}.}
@@ -12,6 +12,8 @@ get_plot(catalog, plot, parameter = NULL, year = NULL)
 \item{plot}{Name of the plot.}
 
 \item{parameter, year}{Parameter and year of the plot; \code{NULL} if the plot has none.}
+
+\item{...}{Further keys of the plot by name, e.g. \code{site = "A1"}.}
 }
 \value{
 The plot. Stops with an error of class \code{plot_catalog_error} unless exactly one plot matches,
@@ -24,5 +26,8 @@ Get one plot from a plot catalog
 p <- ggplot2::ggplot() + ggplot2::ggtitle("NO2")
 catalog <- plot_catalog(list(NO2 = p), "timeseries", names_to = "parameter")
 get_plot(catalog, "timeseries", "NO2")
+
+roses <- plot_catalog(list(A1 = p, B2 = p), "rose", names_to = "site")
+get_plot(roses, "rose", site = "B2")
 
 }

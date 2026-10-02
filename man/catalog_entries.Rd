@@ -2,9 +2,9 @@
 % Please edit documentation in R/plot-catalog.R
 \name{catalog_entries}
 \alias{catalog_entries}
-\title{Rows of a plot catalog matching plot, parameter and year}
+\title{Rows of a plot catalog matching plot and keys}
 \usage{
-catalog_entries(catalog, plot, parameter = NULL, year = NULL)
+catalog_entries(catalog, plot, parameter = NULL, year = NULL, ...)
 }
 \arguments{
 \item{catalog}{Plot catalog as built by \code{\link[=plot_catalog]{plot_catalog()}}.}
@@ -12,17 +12,22 @@ catalog_entries(catalog, plot, parameter = NULL, year = NULL)
 \item{plot}{Name of the plot.}
 
 \item{parameter, year}{Parameter and year; \code{NULL} to keep all.}
+
+\item{...}{Further keys of the catalog by name, e.g. \code{site = "A1"}; each may hold several values.}
 }
 \value{
 The matching rows. Stops with an error of class \code{plot_catalog_error} if there are none,
-naming the available plots.
+naming the available plots, or if a key in \code{...} is unnamed or not a column of the catalog.
 }
 \description{
-Rows of a plot catalog matching plot, parameter and year
+Rows of a plot catalog matching plot and keys
 }
 \examples{
 p <- ggplot2::ggplot()
 catalog <- plot_catalog(list(`2023` = p, `2024` = p), "map", names_to = "year")
 catalog_entries(catalog, "map")
+
+roses <- plot_catalog(list(A1 = list(Tag = p, Nacht = p)), "rose", names_to = c("site", "daypart"))
+catalog_entries(roses, "rose", daypart = "Nacht")
 
 }

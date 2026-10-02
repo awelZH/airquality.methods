@@ -11,7 +11,7 @@ tasks**, in a tidy file structure, properly documented.
 
 ## What this repo is
 
-An R package (version 0.8.0, GPL >= 3, renv-managed, R >= 4.2). It is *not* an analysis repo: no
+An R package (version 0.9.0, GPL >= 3, renv-managed, R >= 4.2). It is *not* an analysis repo: no
 report logic, no hard-coded project paths, no dataset-specific pipelines. Everything that only makes
 sense inside one specific analysis belongs to `airquality`.
 
@@ -32,7 +32,7 @@ Layout of `R/`:
 | `scale-capped*.R` | capped ggplot2 colour scales (moved from `ufp25`) |
 | `scales.R`, `theme.R` | pollutant scales and figure themes |
 | `legend-grouped.R` | `grouped_key()`, `add_grouped_legend()`: one legend block per group (`legendry`, Suggests) |
-| `legend-keys.R` | `band_key()`: a key for a median-and-percentile-band figure, as a plot of its own to place beside it (moved from `ufp25`) |
+| `stat-distribution.R` | `stat_distribution()`, `scale_distribution()`: percentile bands and centre lines of a distribution, their legend built by ggplot2 (replaced `band_key()`, 0.9.0) |
 | `fig-meta.R` | `fig_meta()`: title, caption, note and alt text carried on the plot object, never drawn; `fig_title/caption/note/alt()`, `fig_index()` (moved from `ufp25`) |
 | `polar-raster*.R` | polar plots by wind speed and direction on a Cartesian panel: `polar_bin()`, `polar_sector()` (binning, no smoothing), `polar_raster()`, `polar_plot()` (`openair::polarPlot()` smoothing, Suggests), `polar_data()`, `polar_grid()`, `theme_polar()`, `polar_statfun()` (moved from `ufp25`) |
 | `polar-key.R` | `polar_key()`: the key rose of a facetted figure, as a plot of its own (moved from `ufp25`) |
@@ -156,13 +156,39 @@ resize. It refuses a non-plot, because `ggplot() + theme() |> fig_meta()` hands 
 (`|>` binds tighter than `+`). Together with the plot catalog: the catalog carries the plot to the
 page, `fig_caption()`/`fig_alt()` give its texts there.
 
-**14. A key that ggplot2 cannot build is a plot of its own** (0.6.0, 2026-09-30, moved from
-`ufp25`). A distribution panel draws median, mean and two percentile bands from four columns of the
-same rows; mapping them onto aesthetics just to get a legend would draw the figure the wrong way
-round. `band_key()` draws a schematic hump with the four elements mapped *there* and lets ggplot2 lay
-out the legend; it is placed beside the figure (patchwork). The alphas are baked into the fills so
-the legend shows the shade the figure draws. Its default theme is `theme_minimal(9)`; callers pass
-the theme of the figure it explains (`ufp25` passes its report theme).
+**14. A distribution's legend comes from its stat, not from a key plot** (0.9.0, 2026-10-02,
+replaces `band_key()` of 0.6.0). A distribution panel draws median, mean and percentile bands. Up
+to 0.8.0 these were four layers on four columns, and `band_key()` drew a made-up hump beside the
+figure (patchwork) with the same four elements mapped *there*, so that ggplot2 would lay out a
+legend -- which meant the alphas and line types stood twice, in the figure and in the key, and had
+to be kept equal by hand. `stat_distribution()` computes the statistics itself and returns one row
+per statistic, labelled in the computed variable `statistic`; the constructor maps that onto an
+aesthetic of each part's geom (`alpha` for ribbons, `linewidth` for line ranges, `linetype` for
+lines, `shape` for points), so the drawn figure and its legend come from one scale
+(`scale_distribution()`). Decided along the way:
+
+* **One call, two layers** (bands, centres), returned as a list for `+`: a layer has one geom, and
+  the parts want different ones. `band_params`/`centre_params` reach one part only.
+* **Two kinds of input, one internal format**: raw `y`, summarised by `quantile(type = 7)`,
+  `median()`, `mean()` per `x`; or statistics computed beforehand (data too large to hand to a
+  plot), mapped through ggplot2's boxplot aesthetics `ymin`/`lower`/`middle`/`upper`/`ymax` and `y`
+  for the mean. The raw path computes exactly that wide row, so both paths draw the same (tested).
+  At most two bands -- the boxplot vocabulary; more would be `ggdist`'s job.
+* **Groups are split per statistic only for connecting geoms** (ribbon, path, polygon), where two
+  bands of one group would otherwise become one polygon. Points and ranges keep the caller's groups,
+  so dodging moves a group's bands and centres together.
+* **Band labels are written from `probs`** (P10-P90 with an en dash), so a label cannot name
+  another percentile than the one drawn; centre labels default to German, as `band_key()`'s did.
+* **Two aesthetics on one part merge into one legend block only if their guides share `order`**
+  (ggplot2 groups legends by order *and* hash). `linewidth` can tell the bands apart (box-like) or
+  the centres (line width beside line type), so `scale_distribution(linewidth_part = )` says which;
+  among the centres it carries no `override.aes`, because merging two of them warns at draw time.
+  Found because `grob_labels()` is `unique()`: two blocks both reading "Median" passed a label
+  test -- the test now counts the legends in the guide box.
+* Without `scale_distribution()` ggplot2's default alpha scale warns about a discrete variable;
+  the stat does not add scales itself, so a caller's own scale replaces nothing silently.
+* `ggdist::stat_lineribbon()` was the model and was not taken: a heavy dependency, one centre
+  only (not median *and* mean), no path for summarised input.
 
 **15. Polar plots and maps are ggplot2 extensions with a few hard invariants** (0.7.0, 2026-09-30,
 moved from `ufp25`, where the full reasoning is `docs/decisions/02_package_architecture.md`,
@@ -258,7 +284,8 @@ column order carries no meaning.
 | `recode_ecosystems()`, `classify_*()` (site, NH3 emission, estimated part), `derive_source_category()` (in `airquality`, 0.5.0, 2026-09-25) | same names, unchanged; replace the copies in `ndep.ostluft` (`recode_ecosys()`, `ostluft_siteclass()`, `cut_*()`, `derive_source_cat()`) |
 | `plot_catalog()`, `catalog_entries()`, `get_plot()`, `print_tabset()` (in `airquality`, 0.5.0, 2026-09-25) | same names; errors now of class `plot_catalog_error` (was `airquality_plot_error`), `print_tabset(level = 5)` |
 | `scale_capped()` and variants (in `ufp25`; its copy deleted 2026-09-30) | same names, unchanged |
-| `fig_meta()`, `fig_title/caption/note/alt()`, `fig_index()`, `band_key()` (in `ufp25`, 0.6.0, 2026-09-30) | same names; the attribute is `fig_meta` (was `ufp_fig`); `band_key()`'s default theme is `theme_minimal(9)` (was `ufp25::theme_report(9)`) |
+| `fig_meta()`, `fig_title/caption/note/alt()`, `fig_index()` (in `ufp25`, 0.6.0, 2026-09-30) | same names; the attribute is `fig_meta` (was `ufp_fig`) |
+| `band_key()` (0.6.0; removed in 0.9.0) | `stat_distribution()` + `scale_distribution()`: the legend is the figure's own, no key plot beside it |
 | `polar_*()`, `theme_polar()`, `theme_polar_map()`, `bbox_lv95()`, `basemap_swisstopo()`, `annotation_basemap()`, `annotation_scalebar()` (in `ufp25`, 0.7.0, 2026-09-30) | same names; classes `swisstopo_basemap`/`lv95_bbox` (were `ufp_basemap`/`ufp_bbox`); basemap cache under `R_user_dir("airquality.methods")` (pinned files unaffected); `polar_statfun()` newly exported (was `ufp25:::.polar_statfun()`) |
 
 Deprecated wrappers still return the **old** shapes, so `airquality` runs unchanged and emits
@@ -375,7 +402,7 @@ caught this because the suite always calls something `stars::` first.
   `read_geo_admin()`/`align_to_reference()`, no deprecated wrapper is called any more. It uses 0.4.0
   from a local renv install until 0.4.0 is pushed.
 * **`ufp25`:** imports this package (pinned by commit in its `renv.lock`). Moved over on
-  2026-09-30: `scale_capped` (its copy dropped), `fig_meta()` family and `band_key()` (0.6.0), the
+  2026-09-30: `scale_capped` (its copy dropped), `fig_meta()` family and `band_key()` (0.6.0; replaced by `stat_distribution()` in 0.9.0), the
   polar plots and maps with basemap and scale bar (0.7.0 — one step, because the map furniture and
   the polar functions share their internal helpers). Deliberately staying in `ufp25`:
   `theme_report()`, `read_ostluft_parquet()`, the source location (`wd_extreme()`,

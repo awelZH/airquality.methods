@@ -11,7 +11,7 @@ tasks**, in a tidy file structure, properly documented.
 
 ## What this repo is
 
-An R package (version 0.9.0, GPL >= 3, renv-managed, R >= 4.2). It is *not* an analysis repo: no
+An R package (version 0.10.0, GPL >= 3, renv-managed, R >= 4.2). It is *not* an analysis repo: no
 report logic, no hard-coded project paths, no dataset-specific pipelines. Everything that only makes
 sense inside one specific analysis belongs to `airquality`.
 
@@ -26,7 +26,7 @@ Layout of `R/`:
 | `geo-admin-collections.R` | `collection_spec()`, `geo_admin_specs()`, `read_geo_admin()` |
 | `raster-cube.R` | `stack_years()`, `tibble_to_cube()`, grid descriptions |
 | `raster-align.R` | GDAL resampling, temporal matching, `align_to_reference/grid()` |
-| `read-tabular.R`, `read-vector.R` | opendata.swiss (`get_opendataswiss_resources()`: resources with `modified` and `byte_size`, the version to check before a download; no checksum published), local CSV, geolion WFS |
+| `read-tabular.R`, `read-vector.R` | opendata.swiss (`get_opendataswiss_resources()`: resources with `modified`, `byte_size`, `id` and `name`; `select_opendataswiss_resource()`: exactly one resource by name; `download_opendataswiss_resource()`: cached, fetched again only for a new version), local CSV, geolion WFS |
 | `recode.R` | pollutant and metric labels; `markdown_text()` (subscripts and superscripts for ggtext) |
 | `aggregate.R` | `aggregate_groups()` |
 | `scale-capped*.R` | capped ggplot2 colour scales (moved from `ufp25`) |
@@ -247,6 +247,18 @@ in `...` that is no column, or is unnamed, is an error rather than a filter that
 and the "which plots exist" error lists the combinations over the keys the plot actually has.
 `dplyr::bind_rows()` of catalogs with different own keys puts the later keys after `figure`;
 column order carries no meaning.
+
+**17. An opendata.swiss resource is chosen by its name and fetched by its version** (0.10.0,
+2026-10-02, asked for by `ufp25`, whose campaign data moved to opendata.swiss). The download urls of
+the cantonal datasets are opaque (`KTZH_00003175_00006879.parquet`), so `get_opendataswiss_resources()`
+now also returns the CKAN `id` and the resource `name` (German first, then en/fr/it).
+`select_opendataswiss_resource()` takes a regular expression on the name and refuses both no match
+and several matches, listing every resource: a renamed or an added resource stops a pipeline instead
+of reading the wrong file. `download_opendataswiss_resource()` keeps the file under its own name with
+a `.version` file beside it (`modified` and `byte_size` as the API states them -- opendata.swiss
+publishes no checksum) and downloads again only when the API reports another version; the download
+goes to a `.part` file, a stated size is checked, and only a complete file replaces the cached one.
+The new columns are appended, so existing calls keep working.
 
 ## Scope decisions (deliberate, not technical limits)
 

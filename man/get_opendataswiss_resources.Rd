@@ -16,8 +16,11 @@ get_opendataswiss_resources(
 }
 \value{
 Tibble with one row per resource that has a download url, in the order of the API:
-\code{download_url}, \code{format}, \code{modified} (character, as published) and \code{byte_size} (numeric); \code{NA}
-where the API leaves a field out.
+\code{download_url}, \code{format}, \code{modified} (character, as published), \code{byte_size} (numeric), \code{id}
+(the CKAN resource id) and \code{name} (the resource title, in German where the API has it, else
+English, French or Italian); \code{NA} where the API leaves a field out. The name is what tells
+resources apart -- the download urls of the cantonal datasets are opaque
+(\code{KTZH_00003175_00006879.parquet}) -- see \code{\link[=select_opendataswiss_resource]{select_opendataswiss_resource()}}.
 }
 \description{
 The version of each resource as the CKAN API describes it, so that a pipeline can check it on every

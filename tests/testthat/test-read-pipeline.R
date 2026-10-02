@@ -271,7 +271,7 @@ test_that("get_opendataswiss_resources lists the resources with their version, i
   )
 
   expect_s3_class(resources, "tbl_df")
-  expect_named(resources, c("download_url", "format", "modified", "byte_size"))
+  expect_named(resources, c("download_url", "format", "modified", "byte_size", "id", "name"))
   expect_equal(resources$download_url, c("https://x/b.csv", "https://x/a.txt", "https://x/c.csv"))
   expect_equal(resources$modified, c("2026-02-06T14:12:28+01:00", "2025-12-15T14:49:10+01:00", NA))
   expect_equal(resources$byte_size, c(28498959, 2680, NA))
@@ -292,7 +292,96 @@ test_that("get_opendataswiss_resources returns an empty table for a dataset with
   )
 
   expect_equal(nrow(resources), 0)
-  expect_named(resources, c("download_url", "format", "modified", "byte_size"))
+  expect_named(resources, c("download_url", "format", "modified", "byte_size", "id", "name"))
+})
+
+ckan_resources <- function() {
+  # The shape of the two cantonal UFP datasets: multilingual names, opaque urls,
+  # a description without a format.
+  body <- list(result = list(resources = list(
+    list(id = "r1", download_url = "https://x/KTZH_1.md", format = "",
+         name = list(de = "", en = "Datensatzbeschreibung (dataset description in english)")),
+    list(id = "r2", download_url = "https://x/KTZH_2.parquet", format = "PARQUET", byte_size = 10,
+         modified = "2026-09-03T15:31:01+02:00",
+         name = list(de = "Messdaten ultrafeine Partikel in der Region Kloten", en = "UFP data")),
+    list(id = "r3", download_url = "https://x/KTZH_3.csv", format = "CSV",
+         name = list(de = "Metadaten zu Messorten und Sensoren")),
+    list(id = "r4", download_url = "https://x/KTZH_4.csv", format = "CSV",
+         name = "Metadaten zu ausgeschlossenen Messperioden")
+  )))
+  httr2::with_mocked_responses(
+    function(req) {
+      httr2::response(
+        status_code = 200, url = "https://ckan/api",
+        headers = list(`Content-Type` = "application/json"),
+        body = charToRaw(jsonlite::toJSON(body, auto_unbox = TRUE))
+      )
+    },
+    get_opendataswiss_resources("https://ckan/api")
+  )
+}
+
+test_that("get_opendataswiss_resources carries the id and the name, German first", {
+  res <- ckan_resources()
+  expect_equal(res$id, c("r1", "r2", "r3", "r4"))
+  expect_equal(res$name, c("Datensatzbeschreibung (dataset description in english)",
+                           "Messdaten ultrafeine Partikel in der Region Kloten",
+                           "Metadaten zu Messorten und Sensoren",
+                           "Metadaten zu ausgeschlossenen Messperioden"))
+})
+
+test_that("select_opendataswiss_resource picks exactly one resource by its name", {
+  res <- ckan_resources()
+  expect_equal(select_opendataswiss_resource(res, "^messdaten", format = "parquet")$id, "r2")
+  expect_equal(select_opendataswiss_resource(res, "Messorten")$id, "r3")
+  # Two matches and no match are both refused, listing what there is.
+  expect_error(select_opendataswiss_resource(res, "^Metadaten"), "2 resources match")
+  expect_error(select_opendataswiss_resource(res, "Klassen"), "Messorten und Sensoren")
+  expect_error(select_opendataswiss_resource(res, "^Messdaten", format = "CSV"), "0 resources match")
+})
+
+test_that("download_opendataswiss_resource fetches once and again only for a new version", {
+  dir <- withr::local_tempdir()
+  calls <- 0
+  local_mocked_bindings(fetch_to_file = function(href, path, ...) {
+    calls <<- calls + 1
+    writeBin(as.raw(seq_len(10)), path)
+    invisible(path)
+  })
+  res <- select_opendataswiss_resource(ckan_resources(), "^Messdaten")
+
+  first <- download_opendataswiss_resource(res, dir)
+  expect_true(first$downloaded)
+  expect_equal(first$path, file.path(dir, "KTZH_2.parquet"))
+  expect_true(file.exists(first$path))
+  expect_equal(calls, 1)
+
+  again <- download_opendataswiss_resource(res, dir)
+  expect_false(again$downloaded)
+  expect_equal(calls, 1)
+
+  res$modified <- "2026-10-01T08:00:00+02:00"
+  newer <- download_opendataswiss_resource(res, dir)
+  expect_true(newer$downloaded)
+  expect_equal(calls, 2)
+  expect_false(file.exists(paste0(newer$path, ".part")))
+})
+
+test_that("download_opendataswiss_resource refuses a file of the wrong size and keeps the old one", {
+  dir <- withr::local_tempdir()
+  res <- select_opendataswiss_resource(ckan_resources(), "^Messdaten")
+  local_mocked_bindings(fetch_to_file = function(href, path, ...) {
+    writeBin(as.raw(seq_len(10)), path); invisible(path)
+  })
+  ok <- download_opendataswiss_resource(res, dir)
+
+  res$modified <- "2026-10-01T08:00:00+02:00"
+  local_mocked_bindings(fetch_to_file = function(href, path, ...) {
+    writeBin(as.raw(1:3), path); invisible(path)
+  })
+  expect_error(download_opendataswiss_resource(res, dir), "3 bytes")
+  expect_equal(file.size(ok$path), 10)
+  expect_false(file.exists(paste0(ok$path, ".part")))
 })
 
 test_that("read_local_csv reads the cantonal export defaults", {

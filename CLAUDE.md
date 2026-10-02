@@ -185,6 +185,10 @@ lines, `shape` for points), so the drawn figure and its legend come from one sca
   among the centres it carries no `override.aes`, because merging two of them warns at draw time.
   Found because `grob_labels()` is `unique()`: two blocks both reading "Median" passed a label
   test -- the test now counts the legends in the guide box.
+* **`min_n` makes a thin `x` a gap, not a bridge** (0.10.0, asked for by `ufp25`'s diurnal PN panels):
+  an hour with fewer values than `min_n` gets `NA` statistics, so ribbons and lines break there.
+  Dropping the thin hours instead would draw a straight line from 22 to 6 o'clock through a night
+  that has three values. The gaps are intended, so `na.rm` is set with it.
 * Without `scale_distribution()` ggplot2's default alpha scale warns about a discrete variable;
   the stat does not add scales itself, so a caller's own scale replaces nothing silently.
 * `ggdist::stat_lineribbon()` was the model and was not taken: a heavy dependency, one centre

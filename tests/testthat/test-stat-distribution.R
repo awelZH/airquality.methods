@@ -157,6 +157,22 @@ test_that("a part can be left out, and given parameters of its own", {
   expect_false(anyNA(ggplot2::layer_data(p, 2)$colour))
 })
 
+test_that("an x with fewer than min_n values becomes a gap, not a bridge", {
+  # Three x positions; the middle one holds two values only.
+  d <- data.frame(x = c(rep(1, 10), 2, 2, rep(3, 10)),
+                  y = c(1:10, 5, 6, (1:10) * 2))
+  p <- ggplot2::ggplot(d, ggplot2::aes(x, y)) +
+    stat_distribution(min_n = 5) + scale_distribution()
+  bands <- ggplot2::layer_data(p, 1)
+  centres <- ggplot2::layer_data(p, 2)
+  expect_true(all(is.na(bands$ymin[bands$x == 2])))
+  expect_true(all(is.na(centres$y[centres$x == 2])))
+  expect_false(anyNA(centres$y[centres$x != 2]))
+  expect_equal(unique(bands$n[bands$x == 2]), 2L)
+  # The gap is intended, so drawing it raises nothing.
+  expect_renders_clean(p)
+})
+
 test_that("what cannot be drawn as asked is refused", {
   expect_error(stat_distribution(probs = c(0.1, 0.5, 0.9)), "two or four")
   expect_error(stat_distribution(probs = c(0.9, 0.1)), "ascending")

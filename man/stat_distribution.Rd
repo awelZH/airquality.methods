@@ -17,6 +17,7 @@ stat_distribution(
   labels = c(median = "Median", mean = "Mittelwert"),
   band_labels = NULL,
   summarised = FALSE,
+  min_n = 1L,
   band_params = list(),
   centre_params = list(),
   position = "identity",
@@ -57,11 +58,18 @@ them from \code{probs} (\code{"P25-P75"}, \code{"P10-P90"}).}
 \item{summarised}{\code{TRUE} if the data hold the statistics already (see
 below).}
 
+\item{min_n}{Fewest values an \code{x} needs before its statistics are drawn
+(raw values only). Below it the statistics are \code{NA}, so ribbons and
+lines break there instead of joining the neighbours across a gap -- a
+line from 22 to 6 o'clock through a night with three values would draw
+a night nobody measured. The count is the computed variable \code{n}.}
+
 \item{band_params, centre_params}{Parameters for one part only, e.g.
 \code{band_params = list(colour = NA)} so that a colour mapped for the
 centres does not outline the ribbons.}
 
-\item{na.rm}{Remove missing values silently.}
+\item{na.rm}{Remove missing values silently. Set automatically when
+\code{min_n > 1}, because the gaps it makes are intended.}
 }
 \value{
 A list of up to two ggplot2 layers (bands, then centres), to be

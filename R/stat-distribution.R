@@ -61,7 +61,13 @@
 #' @param band_params,centre_params Parameters for one part only, e.g.
 #'   `band_params = list(colour = NA)` so that a colour mapped for the
 #'   centres does not outline the ribbons.
-#' @param na.rm Remove missing values silently.
+#' @param min_n Fewest values an `x` needs before its statistics are drawn
+#'   (raw values only). Below it the statistics are `NA`, so ribbons and
+#'   lines break there instead of joining the neighbours across a gap -- a
+#'   line from 22 to 6 o'clock through a night with three values would draw
+#'   a night nobody measured. The count is the computed variable `n`.
+#' @param na.rm Remove missing values silently. Set automatically when
+#'   `min_n > 1`, because the gaps it makes are intended.
 #'
 #' @return A list of up to two ggplot2 layers (bands, then centres), to be
 #'   added with `+`.
@@ -102,7 +108,7 @@ stat_distribution <- function(mapping = NULL, data = NULL, ...,
                               band_geom = "ribbon", centre_geom = "line",
                               band_aes = NULL, centre_aes = NULL,
                               labels = c(median = "Median", mean = "Mittelwert"),
-                              band_labels = NULL, summarised = FALSE,
+                              band_labels = NULL, summarised = FALSE, min_n = 1L,
                               band_params = list(), centre_params = list(),
                               position = "identity", na.rm = FALSE,
                               show.legend = NA, inherit.aes = TRUE) {
@@ -124,7 +130,8 @@ stat_distribution <- function(mapping = NULL, data = NULL, ...,
   shared <- c(list(probs = probs, centre = centre,
                    labels = unname(labels[centre]),
                    band_labels = as.character(band_labels),
-                   summarised = isTRUE(summarised), na.rm = na.rm),
+                   summarised = isTRUE(summarised), min_n = min_n,
+                   na.rm = na.rm || min_n > 1),
               list(...))
   part_layer <- function(part, geom, aesthetics, params) {
     g <- .dist_geom(geom)
@@ -238,11 +245,11 @@ StatDistribution <- ggplot2::ggproto(
   # compute_panel() takes `...`.
   compute_group = function(data, scales, part = "bands", probs, centre,
                            labels, band_labels, summarised = FALSE,
-                           na.rm = FALSE, separate = TRUE) {
+                           min_n = 1L, na.rm = FALSE, separate = TRUE) {
     wide <- if (summarised) {
       .dist_given(data, probs, part, centre)
     } else {
-      .dist_summarise(data, probs, na.rm)
+      .dist_summarise(data, probs, na.rm, min_n)
     }
     .dist_long(wide, part, probs, centre, labels, band_labels)
   }
@@ -298,7 +305,7 @@ StatDistribution <- ggplot2::ggproto(
 }
 
 # Raw values -> one wide row per x, in the boxplot vocabulary of ggplot2.
-.dist_summarise <- function(data, probs, na.rm) {
+.dist_summarise <- function(data, probs, na.rm, min_n = 1L) {
   if (is.null(data$y)) {
     cli::cli_abort(c(
       "{.fn stat_distribution} needs {.field y} to summarise.",
@@ -321,6 +328,8 @@ StatDistribution <- ggplot2::ggproto(
     y = vapply(by_x, mean, numeric(1), USE.NAMES = FALSE))
   cols <- if (length(probs) == 4L) c("ymin", "lower", "upper", "ymax") else c("lower", "upper")
   for (i in seq_along(cols)) wide[[cols[i]]] <- unname(q[i, ])
+  thin <- wide$n < min_n
+  for (col in c("middle", "y", cols)) wide[[col]][thin] <- NA_real_
   wide
 }
 

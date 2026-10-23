@@ -443,8 +443,9 @@ caught this because the suite always calls something `stars::` first.
 ## Open items in neighbouring repos
 
 * **`airquality`:** done 2026-09-18 – obsolete prefixes removed, exposition switched to
-  `read_geo_admin()`/`align_to_reference()`, no deprecated wrapper is called any more. It uses 0.4.0
-  from a local renv install until 0.4.0 is pushed.
+  `read_geo_admin()`/`align_to_reference()`, no deprecated wrapper is called any more. It pins 0.11.0
+  from GitHub in its `renv.lock` (since 2026-10-23; the upgrade from 0.5.3 was byte-identical there: 12
+  outputs, 645 figures) and reads the censuses 1990/2000 with `read_statpop_ha()`.
 * **`ufp25`:** imports this package (pinned by commit in its `renv.lock`). Moved over on
   2026-09-30: `scale_capped` (its copy dropped), `fig_meta()` family and `band_key()` (0.6.0; replaced by `stat_distribution()` in 0.9.0), the
   polar plots and maps with basemap and scale bar (0.7.0 — one step, because the map furniture and

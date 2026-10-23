@@ -114,6 +114,79 @@ subtract_noloc <- function(x,
 
 # ---- Reading STATPOP ------------------------------------------------------
 
+#' Column names of the census years 1990 and 2000
+#'
+#' The census hectare tables of `ch.bfs.statistik-bevoelkerung_haushalte` name
+#' their columns by census: `KX`/`KY` (1990) and `X`/`Y` (2000) for the lower
+#' left corner, `P9BTOT`/`P00BTOT` for the inhabitants. Mapped onto the STATPOP
+#' names, they are read by the same code. Extend the list for further census
+#' variables, for example the men:
+#' `c(statpop_census_aliases(), list(BBMTOT = c("P9BMTOT", "P00BMTOT")))`.
+#' Check the BFS documentation that a census variable means the same as its
+#' STATPOP counterpart.
+#'
+#' @return A named list: STATPOP column name to the census column names.
+#'
+#' @examples
+#' statpop_census_aliases()
+#'
+#' @export
+statpop_census_aliases <- function() {
+  list(
+    BBTOT = c("P9BTOT", "P00BTOT"),
+    E_KOORD = c("KX", "X"),
+    N_KOORD = c("KY", "Y")
+  )
+}
+
+#' Empty the cells listed with zero in every attribute
+#'
+#' The census tables list hectares without inhabitants (they carry other
+#' variables); STATPOP lists inhabited cells only. Setting the zeros to `NA`
+#' makes both mean the same: an empty cell is an uninhabited one.
+#'
+#' @param x A `stars` object.
+#'
+#' @return `x` with `NA` where all attributes are 0.
+#'
+#' @keywords internal
+empty_zero_cells <- function(x) {
+  zero <- purrr::map(names(x), \(n) !is.na(x[[n]]) & x[[n]] == 0) |> purrr::reduce(`&`)
+  for (n in names(x)) x[[n]][zero] <- NA
+  x
+}
+
+#' Whether an asset is declared in the given crs
+#'
+#' @param asset A one-row data frame from [get_geo_admin_assets()].
+#' @param crs Coordinate reference system.
+#'
+#' @return `TRUE` if `proj:epsg` is missing or names `crs`.
+#'
+#' @keywords internal
+in_crs <- function(asset, crs) {
+  epsg <- asset[["proj:epsg"]]
+  is.null(epsg) || is.na(epsg) || sf::st_crs(as.integer(epsg)) == sf::st_crs(crs)
+}
+
+#' The collector pixel log of an item without collector pixels
+#'
+#' @param coords Coordinate columns.
+#'
+#' @return A tibble with the columns of the `noloc` log of [subtract_noloc()]
+#'   and no rows.
+#'
+#' @keywords internal
+empty_noloc_log <- function(coords = c("E_KOORD", "N_KOORD")) {
+  log <- tibble::tibble(
+    x = numeric(), y = numeric(),
+    n_records = integer(), noloc = numeric(), cell_before = numeric(),
+    subtracted = numeric(), cell_after = numeric(), status = character()
+  )
+  names(log)[1:2] <- coords
+  log
+}
+
 #' Read and correct one STATPOP item
 #'
 #' @inheritParams read_statpop_ha
@@ -124,13 +197,15 @@ subtract_noloc <- function(x,
 #'
 #' @keywords internal
 read_statpop_item <- function(ha_asset, noloc_assets, variables, bbox, noloc_variable,
-                              year_col, coords, anchor, correct_noloc, crs, cache_dir, ...) {
+                              year_col, coords, anchor, correct_noloc, crs, cache_dir,
+                              aliases = NULL, drop_zero = TRUE, ...) {
   inform_reading(ha_asset, cache_dir)
   raster <- read_asset_stars(
     ha_asset,
     variables = variables, bbox = bbox, coords = coords, anchor = anchor,
-    crs = crs, cache_dir = cache_dir, ...
+    crs = crs, cache_dir = cache_dir, aliases = aliases, ...
   )
+  if (drop_zero) raster <- empty_zero_cells(raster)
 
   result <- tibble::tibble(
     item   = ha_asset$item,
@@ -153,6 +228,15 @@ read_statpop_item <- function(ha_asset, noloc_assets, variables, bbox, noloc_var
   }
 
   noloc_asset <- dplyr::filter(noloc_assets, .data$item == ha_asset$item)
+  if (nrow(noloc_asset) == 0 && !in_crs(ha_asset, crs)) {
+    # the census years (in the fallback crs) come without collector pixels: nothing to subtract
+    cli::cli_inform(c("i" = "Item {.val {ha_asset$item}}: census year, no collector pixels to subtract."))
+    return(dplyr::mutate(
+      result,
+      stars = list(raster), noloc_subtracted = 0, noloc_unmatched = 0,
+      noloc = list(empty_noloc_log(coords))
+    ))
+  }
   if (nrow(noloc_asset) != 1) {
     return(without_correction(c(
       "!" = "Item {.val {ha_asset$item}}: found {nrow(noloc_asset)} collector pixel file{?s} (expected 1), no correction applied.",
@@ -205,6 +289,15 @@ read_statpop_item <- function(ha_asset, noloc_assets, variables, bbox, noloc_var
 #'
 #' The invariant `sum(noloc file) = noloc_subtracted + noloc_unmatched` holds.
 #'
+#' The collection also holds the federal censuses 1990 and 2000, as csv in LV03
+#' only and with their own column names (`KX`/`KY` or `X`/`Y`, `P9BTOT`,
+#' `P00BTOT`). They are read in the same call: the LV03 asset is taken where no
+#' LV95 one exists (`epsg_fallback`), its columns are renamed by `aliases`, and
+#' it is shifted onto the LV95 hectare grid ([shift_lv03_to_lv95()]), so all
+#' years share one grid. The censuses have no collector pixels:
+#' `noloc_subtracted` and `noloc_unmatched` are 0 and the log is empty. Census
+#' variables other than the headcount need an alias of their own.
+#'
 #' @param assets Tibble from [get_geo_admin_assets()].
 #' @param years Wanted years (`NULL` = all available).
 #' @param variables Variables to read. Must contain `noloc_variable` when
@@ -220,6 +313,13 @@ read_statpop_item <- function(ha_asset, noloc_assets, variables, bbox, noloc_var
 #' @param correct_noloc Apply the correction?
 #' @param crs Expected coordinate reference system.
 #' @param cache_dir Cache directory.
+#' @param epsg_fallback EPSG code of the assets read for years without one in
+#'   `crs` (the censuses in LV03), or `NULL` to read the years in `crs` only.
+#' @param aliases Other names of the columns, by default those of the censuses;
+#'   see [read_asset_table()].
+#' @param drop_zero Empty the cells listed with 0 in all `variables`? The
+#'   censuses list uninhabited hectares, STATPOP does not; cells emptied by the
+#'   collector pixel correction stay 0.
 #' @param ... Further arguments passed to [read_asset_stars()], `cellsize` for
 #'   instance.
 #'
@@ -228,7 +328,7 @@ read_statpop_item <- function(ha_asset, noloc_assets, variables, bbox, noloc_var
 #'
 #' @examplesIf interactive()
 #' assets <- get_geo_admin_assets("ch.bfs.statistik-bevoelkerung_haushalte")
-#' statpop <- read_statpop_ha(assets, years = 2015:2024)
+#' statpop <- read_statpop_ha(assets, years = c(1990, 2000, 2015:2024))
 #' dplyr::select(statpop, year, format, noloc_subtracted, noloc_unmatched)
 #'
 #' @export
@@ -247,6 +347,9 @@ read_statpop_ha <- function(assets,
                             correct_noloc = TRUE,
                             crs = 2056,
                             cache_dir = geo_admin_cache_dir(),
+                            epsg_fallback = 21781,
+                            aliases = statpop_census_aliases(),
+                            drop_zero = TRUE,
                             ...) {
   anchor <- rlang::arg_match(anchor)
   if (correct_noloc && !is.null(variables) && !noloc_variable %in% variables) {
@@ -258,7 +361,10 @@ read_statpop_ha <- function(assets,
     cli::cli_inform(c("i" = "Only {.val {noloc_variable}} is corrected for collector pixels."))
   }
 
-  ha <- resolve_assets(assets, pattern = ha_pattern, formats = formats, epsg = crs, years = years)
+  ha <- resolve_assets(
+    assets,
+    pattern = ha_pattern, formats = formats, epsg = crs, years = years, epsg_fallback = epsg_fallback
+  )
 
   noloc_assets <- assets |>
     dplyr::filter(
@@ -278,7 +384,8 @@ read_statpop_ha <- function(assets,
     vctrs::vec_chop() |> # one row per year
     purrr::map(\(ha_asset) read_statpop_item(
       ha_asset, noloc_assets, variables, bbox, noloc_variable,
-      year_col, coords, anchor, correct_noloc, crs, cache_dir, ...
+      year_col, coords, anchor, correct_noloc, crs, cache_dir,
+      aliases = aliases, drop_zero = drop_zero, ...
     )) |>
     purrr::list_rbind() |>
     dplyr::arrange(.data$year)

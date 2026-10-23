@@ -16,6 +16,8 @@ read_statpop_item(
   correct_noloc,
   crs,
   cache_dir,
+  aliases = NULL,
+  drop_zero = TRUE,
   ...
 )
 }
@@ -40,6 +42,13 @@ correcting. Only \code{noloc_variable} is corrected.}
 \item{crs}{Expected coordinate reference system.}
 
 \item{cache_dir}{Cache directory.}
+
+\item{aliases}{Other names of the columns, by default those of the censuses;
+see \code{\link[=read_asset_table]{read_asset_table()}}.}
+
+\item{drop_zero}{Empty the cells listed with 0 in all \code{variables}? The
+censuses list uninhabited hectares, STATPOP does not; cells emptied by the
+collector pixel correction stay 0.}
 
 \item{...}{Further arguments passed to \code{\link[=read_asset_stars]{read_asset_stars()}}, \code{cellsize} for
 instance.}

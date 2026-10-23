@@ -235,3 +235,29 @@ test_that("inform_reading names the item, the format and the source", {
   writeLines("a;b", dest)
   expect_message(inform_reading(asset, cache), "csv, from cache")
 })
+
+census_aliases <- list(BBTOT = c("P9BTOT", "P00BTOT"), E_KOORD = c("KX", "X"), N_KOORD = c("KY", "Y"))
+
+test_that("read_asset_table reads a wanted column under its alias and renames it", {
+  path <- withr::local_tempfile(lines = c("RELI;X;Y;P00BTOT;P00B11", "60002000;600000;200000;5;3"))
+
+  out <- read_asset_table(path, "csv", columns = c("E_KOORD", "N_KOORD", "BBTOT"), aliases = census_aliases)
+
+  expect_named(out, c("E_KOORD", "N_KOORD", "BBTOT"))
+  expect_equal(out$BBTOT, 5)
+  expect_equal(out$E_KOORD, 600000)
+})
+
+test_that("read_asset_table prefers the wanted name over its aliases", {
+  path <- withr::local_tempfile(lines = c("BBTOT;P9BTOT", "1;2"))
+
+  expect_equal(read_asset_table(path, "csv", columns = "BBTOT", aliases = census_aliases)$BBTOT, 1)
+})
+
+test_that("read_asset_table refuses several aliases of one column and names a missing one", {
+  both <- withr::local_tempfile(lines = c("P9BTOT;P00BTOT", "1;2"))
+  none <- withr::local_tempfile(lines = c("OTHER", "1"))
+
+  expect_error(read_asset_table(both, "csv", columns = "BBTOT", aliases = census_aliases), "P9BTOT")
+  expect_error(read_asset_table(none, "csv", columns = "BBTOT", aliases = census_aliases), "OTHER")
+})

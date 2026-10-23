@@ -284,3 +284,44 @@ test_that("local_quiet_vsicurl restores a pre-existing value", {
   expect_equal(f(), ".tif")
   expect_equal(Sys.getenv(name), ".vrt")
 })
+
+test_that("shift_lv03_to_lv95 moves hectare coordinates by the false origins of LV95", {
+  data <- tibble::tibble(KX = c(486200, 700000), KY = c(111300, 250000), v = 1:2)
+
+  out <- shift_lv03_to_lv95(data, coords = c("KX", "KY"))
+
+  expect_equal(out$KX, c(2486200, 2700000))
+  expect_equal(out$KY, c(1111300, 1250000))
+  expect_equal(out$v, 1:2)
+})
+
+test_that("shift_lv03_to_lv95 refuses coordinates off whole metres or in LV95 already", {
+  expect_error(shift_lv03_to_lv95(tibble::tibble(E_KOORD = 600000.5, N_KOORD = 200000)), "whole metres")
+  expect_error(shift_lv03_to_lv95(tibble::tibble(E_KOORD = 2600000, N_KOORD = 1200000)), "LV95")
+})
+
+test_that("read_asset_stars shifts an LV03 hectare table onto the LV95 grid", {
+  lv03 <- withr::local_tempfile(fileext = ".csv")
+  writeLines(c("KX;KY;P9BTOT", "600000;200000;10", "600100;200000;20"), lv03)
+  lv95 <- withr::local_tempfile(fileext = ".csv")
+  writeLines(c("E_KOORD;N_KOORD;BBTOT", "2600000;1200000;10", "2600100;1200000;20"), lv95)
+  local_mocked_bindings(download_geo_admin_asset = function(asset, ...) asset$href)
+  asset <- function(path, epsg) {
+    tibble::tibble(asset = basename(path), href = path, format = "csv", `proj:epsg` = epsg)
+  }
+  aliases <- list(BBTOT = "P9BTOT", E_KOORD = "KX", N_KOORD = "KY")
+
+  expect_message(
+    x <- read_asset_stars(asset(lv03, 21781L), variables = "BBTOT", aliases = aliases, crs = 2056),
+    "LV03"
+  )
+  y <- read_asset_stars(asset(lv95, 2056L), variables = "BBTOT", crs = 2056)
+
+  expect_equal(x, y)
+})
+
+test_that("read_asset_stars shifts LV03 tables only onto LV95", {
+  asset <- tibble::tibble(asset = "x_21781.csv", href = "https://x/x.csv", format = "csv", `proj:epsg` = 21781L)
+
+  expect_error(read_asset_stars(asset, crs = 4326), "EPSG:21781")
+})

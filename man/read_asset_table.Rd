@@ -4,7 +4,7 @@
 \alias{read_asset_table}
 \title{Read a tabular asset}
 \usage{
-read_asset_table(path, format, columns = NULL)
+read_asset_table(path, format, columns = NULL, aliases = NULL)
 }
 \arguments{
 \item{path}{Local file path.}
@@ -13,6 +13,10 @@ read_asset_table(path, format, columns = NULL)
 
 \item{columns}{Columns to read (\code{NULL} = all). Missing columns abort with the
 list of available ones.}
+
+\item{aliases}{Named list: a name in \code{columns} to the names it may carry in
+the file instead, for example \code{list(BBTOT = c("P9BTOT", "P00BTOT"))}. The
+column is read under its alias and returned under the wanted name.}
 }
 \value{
 A tibble.

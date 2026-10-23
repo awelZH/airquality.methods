@@ -346,7 +346,8 @@ select_preferred_format <- function(assets, formats = c("parquet", "csv", "tif")
 #'
 #' Applied in order:
 #' 1. content: `pattern` as a regular expression on the asset name (`"_ha_"`)
-#' 2. crs: `proj:epsg == epsg` (assets without the field are kept)
+#' 2. crs: `proj:epsg == epsg` (assets without the field are kept); an item
+#'    without any asset in `epsg` may keep its assets in `epsg_fallback`
 #' 3. format: the first available format from `formats`, per item
 #' 4. uniqueness: prefer names carrying the EPSG code, otherwise abort with the
 #'    list of candidates
@@ -356,6 +357,9 @@ select_preferred_format <- function(assets, formats = c("parquet", "csv", "tif")
 #' @param pattern Regular expression matched against the asset name.
 #' @param formats Formats in decreasing preference.
 #' @param epsg Expected EPSG code, or `NULL` to skip the crs stage.
+#' @param epsg_fallback EPSG code accepted for items that have no asset in
+#'   `epsg` (the census years of STATPOP exist in LV03 only), or `NULL`. The
+#'   reader has to bring such assets into `epsg` itself.
 #' @param years Wanted years (`NULL` = all available).
 #'
 #' @return A tibble with one row per item, sorted by year.
@@ -365,7 +369,8 @@ resolve_assets <- function(assets,
                            pattern = NULL,
                            formats = c("tif", "parquet", "csv"),
                            epsg = 2056,
-                           years = NULL) {
+                           years = NULL,
+                           epsg_fallback = NULL) {
   check_names(names(assets), c("item", "year", "asset", "format"), "assets")
   label <- dplyr::first(assets[["collection"]], default = "assets")
 
@@ -374,7 +379,13 @@ resolve_assets <- function(assets,
     candidates <- dplyr::filter(candidates, stringr::str_detect(.data$asset, pattern))
   }
   if (!is.null(epsg) && "proj:epsg" %in% names(candidates)) {
-    candidates <- dplyr::filter(candidates, is.na(.data$`proj:epsg`) | .data$`proj:epsg` == epsg)
+    candidates <- candidates |>
+      dplyr::mutate(.in_epsg = is.na(.data$`proj:epsg`) | .data$`proj:epsg` == epsg) |>
+      dplyr::filter(
+        .data$.in_epsg | (!any(.data$.in_epsg) & .data$`proj:epsg` %in% epsg_fallback),
+        .by = "item"
+      ) |>
+      dplyr::select(-".in_epsg")
   }
   candidates <- dplyr::filter(candidates, .data$format %in% formats)
 

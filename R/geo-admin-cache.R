@@ -244,17 +244,52 @@ read_parquet_columns <- function(path, columns) {
   arrow::read_parquet(path, col_select = tidyselect::all_of(columns))
 }
 
+#' Find the column a table holds for each wanted name
+#'
+#' A wanted name present in the table is taken as it is; otherwise exactly one
+#' of its aliases has to be present.
+#'
+#' @param available Column names of the table.
+#' @param columns Wanted column names.
+#' @param aliases Named list: wanted name to alternative names.
+#' @param file File name for the error message.
+#'
+#' @return Named character vector: column in the table, named by the wanted name.
+#'
+#' @keywords internal
+resolve_column_aliases <- function(available, columns, aliases, file) {
+  purrr::map_chr(rlang::set_names(columns), \(column) {
+    if (column %in% available) {
+      return(column)
+    }
+    found <- intersect(aliases[[column]], available)
+    if (length(found) > 1) {
+      cli::cli_abort(c(
+        "x" = "{file} holds several aliases of {.val {column}}: {.val {found}}.",
+        "i" = "Expected exactly one of {.val {aliases[[column]]}}."
+      ))
+    }
+    if (length(found) == 0) {
+      return(column) # reported by check_names() with the available columns
+    }
+    found
+  })
+}
+
 #' Read a tabular asset
 #'
 #' @param path Local file path.
 #' @param format `"parquet"` or `"csv"`.
 #' @param columns Columns to read (`NULL` = all). Missing columns abort with the
 #'   list of available ones.
+#' @param aliases Named list: a name in `columns` to the names it may carry in
+#'   the file instead, for example `list(BBTOT = c("P9BTOT", "P00BTOT"))`. The
+#'   column is read under its alias and returned under the wanted name.
 #'
 #' @return A tibble.
 #'
 #' @keywords internal
-read_asset_table <- function(path, format, columns = NULL) {
+read_asset_table <- function(path, format, columns = NULL, aliases = NULL) {
   delim <- if (format == "csv") guess_delim(path)
 
   available <- switch(format,
@@ -263,18 +298,21 @@ read_asset_table <- function(path, format, columns = NULL) {
     cli::cli_abort("Table format {.val {format}} is not supported (parquet, csv).")
   )
   columns <- unique(columns %||% available)
-  check_names(available, columns, basename(path))
+  in_file <- resolve_column_aliases(available, columns, aliases, basename(path))
+  check_names(available, unname(in_file), basename(path))
 
   data <- switch(format,
-    parquet = read_parquet_columns(path, columns),
+    parquet = read_parquet_columns(path, unname(in_file)),
     csv = readr::read_delim(
       path,
       delim = delim,
-      col_select = tidyselect::all_of(columns),
+      col_select = tidyselect::all_of(unname(in_file)),
       show_col_types = FALSE,
       progress = FALSE
     )
   )
 
-  tibble::as_tibble(data)
+  data |>
+    tibble::as_tibble() |>
+    dplyr::rename(dplyr::all_of(in_file))
 }

@@ -20,6 +20,9 @@ read_statpop_ha(
   correct_noloc = TRUE,
   crs = 2056,
   cache_dir = geo_admin_cache_dir(),
+  epsg_fallback = 21781,
+  aliases = statpop_census_aliases(),
+  drop_zero = TRUE,
   ...
 )
 }
@@ -53,6 +56,16 @@ correcting. Only \code{noloc_variable} is corrected.}
 
 \item{cache_dir}{Cache directory.}
 
+\item{epsg_fallback}{EPSG code of the assets read for years without one in
+\code{crs} (the censuses in LV03), or \code{NULL} to read the years in \code{crs} only.}
+
+\item{aliases}{Other names of the columns, by default those of the censuses;
+see \code{\link[=read_asset_table]{read_asset_table()}}.}
+
+\item{drop_zero}{Empty the cells listed with 0 in all \code{variables}? The
+censuses list uninhabited hectares, STATPOP does not; cells emptied by the
+collector pixel correction stay 0.}
+
 \item{...}{Further arguments passed to \code{\link[=read_asset_stars]{read_asset_stars()}}, \code{cellsize} for
 instance.}
 }
@@ -73,11 +86,20 @@ outside the bbox or its cell is empty
 }
 \details{
 The invariant \verb{sum(noloc file) = noloc_subtracted + noloc_unmatched} holds.
+
+The collection also holds the federal censuses 1990 and 2000, as csv in LV03
+only and with their own column names (\code{KX}/\code{KY} or \code{X}/\code{Y}, \code{P9BTOT},
+\code{P00BTOT}). They are read in the same call: the LV03 asset is taken where no
+LV95 one exists (\code{epsg_fallback}), its columns are renamed by \code{aliases}, and
+it is shifted onto the LV95 hectare grid (\code{\link[=shift_lv03_to_lv95]{shift_lv03_to_lv95()}}), so all
+years share one grid. The censuses have no collector pixels:
+\code{noloc_subtracted} and \code{noloc_unmatched} are 0 and the log is empty. Census
+variables other than the headcount need an alias of their own.
 }
 \examples{
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 assets <- get_geo_admin_assets("ch.bfs.statistik-bevoelkerung_haushalte")
-statpop <- read_statpop_ha(assets, years = 2015:2024)
+statpop <- read_statpop_ha(assets, years = c(1990, 2000, 2015:2024))
 dplyr::select(statpop, year, format, noloc_subtracted, noloc_unmatched)
 \dontshow{\}) # examplesIf}
 }

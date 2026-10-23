@@ -414,3 +414,77 @@ test_that("get_geolion_wfs_metadata honours type, version and crs", {
   expect_match(url, "version=1.1.0")
   expect_match(url, "srsName=EPSG%3A21781")
 })
+
+# STATPOP 2020 (LV95, with collector pixels) next to the census 1990 (LV03 csv only, no collector pixels)
+census_statpop_assets <- function() {
+  tibble::tibble(
+    collection = "ch.bfs.statistik-bevoelkerung_haushalte",
+    item = c("item_1990", "item_2020", "item_2020"),
+    year = c(1990L, 2020L, 2020L),
+    asset = c("statpop_1990_ha_21781.csv", "statpop_2020_ha_2056.parquet", "statpop_2020_noloc_2056.csv"),
+    format = c("csv", "parquet", "csv"),
+    href = c("https://x/ha_1990.csv", "https://x/ha.parquet", "https://x/noloc.csv"),
+    `proj:epsg` = c(21781L, 2056L, 2056L)
+  )
+}
+
+local_statpop_mocks <- function(raster = small_raster("BBTOT", value = 10), env = parent.frame()) {
+  calls <- new.env()
+  local_mocked_bindings(
+    read_asset_stars = function(asset, ...) {
+      calls[[asset$item]] <- list(...)
+      raster
+    },
+    download_geo_admin_asset = function(asset, ...) "irrelevant.csv",
+    read_asset_table = function(path, format, columns = NULL, ...) {
+      tibble::tibble(ERHJAHR = 2020L, E_KOORD = 2600000, N_KOORD = 1200000, BBTOT = 4)
+    },
+    .env = env
+  )
+  calls
+}
+
+test_that("read_statpop_ha reads the census years next to STATPOP, without collector pixels", {
+  local_statpop_mocks()
+
+  expect_no_warning(
+    expect_message(out <- read_statpop_ha(census_statpop_assets()), "no collector pixels")
+  )
+
+  expect_equal(out$year, c(1990L, 2020L))
+  expect_equal(out$noloc_subtracted, c(0, 4))
+  expect_equal(out$noloc_unmatched, c(0, 0))
+  expect_equal(nrow(out$noloc[[1]]), 0)
+  expect_named(out$noloc[[1]], names(out$noloc[[2]]))
+  expect_equal(sum(out$stars[[1]]$BBTOT, na.rm = TRUE), 40)
+})
+
+test_that("read_statpop_ha hands the census column names on to the table reader", {
+  calls <- local_statpop_mocks()
+
+  out <- suppressMessages(read_statpop_ha(census_statpop_assets()))
+
+  expect_equal(calls$item_1990$aliases$BBTOT, c("P9BTOT", "P00BTOT"))
+  expect_equal(calls$item_1990$aliases$E_KOORD, c("KX", "X"))
+})
+
+test_that("read_statpop_ha leaves the census years out without a fallback crs", {
+  local_statpop_mocks()
+
+  out <- suppressMessages(read_statpop_ha(census_statpop_assets(), epsg_fallback = NULL))
+
+  expect_equal(out$year, 2020L)
+})
+
+test_that("read_statpop_ha empties cells listed without inhabitants, unless told not to", {
+  raster <- small_raster("BBTOT", value = 10)
+  raster$BBTOT[1, 1] <- 0
+  local_statpop_mocks(raster)
+
+  out <- suppressMessages(read_statpop_ha(census_statpop_assets(), years = 1990))
+  expect_true(is.na(out$stars[[1]]$BBTOT[1, 1]))
+  expect_equal(sum(!is.na(out$stars[[1]]$BBTOT)), 3)
+
+  kept <- suppressMessages(read_statpop_ha(census_statpop_assets(), years = 1990, drop_zero = FALSE))
+  expect_equal(kept$stars[[1]]$BBTOT[1, 1], 0)
+})

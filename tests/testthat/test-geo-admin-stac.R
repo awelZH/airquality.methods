@@ -246,3 +246,21 @@ test_that("check_asset_crs compares the declared epsg with the expected one", {
   # assets without a declared epsg pass through
   expect_true(check_asset_crs(tibble::tibble(asset = "a", `proj:epsg` = NA_integer_), 2056))
 })
+
+test_that("resolve_assets falls back to another epsg only for items without an asset in epsg", {
+  assets <- tibble::tibble(
+    collection = "ch.test",
+    item = c("i1990", "i2010", "i2010", "i2010"),
+    year = c(1990L, 2010L, 2010L, 2010L),
+    asset = c("x_1990_ha_21781.csv", "x_2010_ha_2056.csv", "x_2010_ha_2056.parquet", "x_2010_ha_21781.csv"),
+    format = c("csv", "csv", "parquet", "csv"),
+    `proj:epsg` = c(21781L, 2056L, 2056L, 21781L)
+  )
+
+  out <- resolve_assets(assets, pattern = "_ha_", formats = c("parquet", "csv"), epsg = 2056, epsg_fallback = 21781)
+  expect_equal(out$asset, c("x_1990_ha_21781.csv", "x_2010_ha_2056.parquet"))
+
+  # without a fallback the item in LV03 only is not available
+  out <- resolve_assets(assets, pattern = "_ha_", formats = c("parquet", "csv"), epsg = 2056)
+  expect_equal(out$year, 2010L)
+})

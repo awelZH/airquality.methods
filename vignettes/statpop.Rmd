@@ -133,6 +133,50 @@ statpop |>
   select(year, in_raster, noloc_subtracted, total)
 ```
 
+## The censuses 1990 and 2000
+
+The same collection holds the federal censuses 1990 and 2000, but not in the
+shape of STATPOP: one csv per year, in LV03 (EPSG 21781) only, with columns of
+their own and no collector pixels.
+
+| | STATPOP (2010 on) | census 1990 | census 2000 |
+|---|---|---|---|
+| asset | `_ha_2056` parquet, csv | `_ha_21781.csv` | `_ha_21781.csv` |
+| corner | `E_KOORD`, `N_KOORD` | `KX`, `KY` | `X`, `Y` |
+| inhabitants | `BBTOT` | `P9BTOT` | `P00BTOT` |
+| collector pixels | `_noloc_` file | none | none |
+
+`read_statpop_ha()` reads them in the same call. Where an item has no LV95 asset,
+it takes the LV03 one (`epsg_fallback = 21781`), renames the columns by
+`statpop_census_aliases()` and moves the cells onto the LV95 grid:
+
+```{r}
+census <- tibble(KX = c(600000, 600100), KY = 200000, P00BTOT = c(12, 7))
+shift_lv03_to_lv95(census, coords = c("KX", "KY"))
+```
+
+The shift is not a reprojection. BFS defines the LV95 hectare grid as the LV03
+grid moved by the false origins of LV95, so a cell keeps its `RELI` and the
+STATPOP tables hold exactly the LV03 corner plus 2'000'000 / 1'000'000 m. A
+rigorous transformation would move the corners by up to a few metres, off the
+grid, and `table_to_stars()` would refuse them.
+
+```{r}
+#| eval: false
+pop <- read_statpop_ha(assets, years = c(1990, 2000, 2010:2025))
+pop |> select(year, format, noloc_subtracted, noloc_unmatched)
+```
+
+The census years come with `noloc_subtracted = 0` and an empty log: BFS
+publishes no collector pixels for them, so there is nothing to subtract. The
+census tables also list hectares without inhabitants (they carry other
+variables); `drop_zero` empties them, so an empty cell means an uninhabited one
+in every year. STATPOP lists no such cells.
+
+Two things the reader cannot settle: the census counts the population by its own
+definition, which BFS documents, and census variables other than the headcount
+need an alias of their own (`c(statpop_census_aliases(), list(...))`).
+
 ## Reading more than the headcount
 
 The hectare grid holds far more than `BBTOT` — age classes (`BBM*`, `BBW*`),

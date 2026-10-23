@@ -11,7 +11,7 @@ tasks**, in a tidy file structure, properly documented.
 
 ## What this repo is
 
-An R package (version 0.10.0, GPL >= 3, renv-managed, R >= 4.2). It is *not* an analysis repo: no
+An R package (version 0.11.0, GPL >= 3, renv-managed, R >= 4.2). It is *not* an analysis repo: no
 report logic, no hard-coded project paths, no dataset-specific pipelines. Everything that only makes
 sense inside one specific analysis belongs to `airquality`.
 
@@ -22,7 +22,7 @@ Layout of `R/`:
 | `geo-admin-stac.R` | STAC client: request, pagination, parsing, asset resolution |
 | `geo-admin-cache.R` | download, checksum validation, zip extraction, tabular reading |
 | `geo-admin-raster.R` | bounding boxes, `table_to_stars()`, `read_asset_stars()` |
-| `geo-admin-statpop.R` | STATPOP hectare grid, collector pixel correction |
+| `geo-admin-statpop.R` | STATPOP hectare grid, collector pixel correction; the censuses 1990/2000 (`statpop_census_aliases()`) |
 | `geo-admin-collections.R` | `collection_spec()`, `geo_admin_specs()`, `read_geo_admin()` |
 | `raster-cube.R` | `stack_years()`, `tibble_to_cube()`, grid descriptions |
 | `raster-align.R` | GDAL resampling, temporal matching, `align_to_reference/grid()` |
@@ -263,6 +263,34 @@ a `.version` file beside it (`modified` and `byte_size` as the API states them -
 publishes no checksum) and downloads again only when the API reports another version; the download
 goes to a `.part` file, a stated size is checked, and only a complete file replaces the cached one.
 The new columns are appended, so existing calls keep working.
+
+**18. The censuses 1990 and 2000 are read by the STATPOP reader, shifted, not reprojected** (0.11.0,
+2026-10-23, asked for by `airquality`). `ch.bfs.statistik-bevoelkerung_haushalte` now also holds the
+items 1990 and 2000: one `_ha_21781.csv` each (125 / 192 MB), LV03 only, columns `KX`/`KY` (1990),
+`X`/`Y` (2000), `P9BTOT`/`P00BTOT`, no `_noloc_` file, and rows with 0 inhabitants (33'581 / 34'628 in
+Switzerland). One wrapper reads both datasets, so a caller asks for `years = c(1990, 2000, 2010:...)`:
+
+* `resolve_assets(epsg_fallback = )`: an item **without any** asset in `epsg` may take one in the
+  fallback crs; items with an LV95 asset are untouched. `read_statpop_ha()` passes 21781.
+* **Shift, not reprojection**: `shift_lv03_to_lv95()` adds 2'000'000 / 1'000'000 m. BFS defines the LV95
+  hectare grid that way -- for 2010 `E_KOORD`/`N_KOORD` equal the LV03 corner from `RELI` plus the offsets
+  in all 338'457 rows. FINELTRA would move the corners by up to a few metres, off the grid, and
+  `table_to_stars()` would stop. `read_asset_stars()` shifts a *table* in 21781 when `crs` is LV95; a
+  GeoTIFF in 21781 or another target crs still stops in `check_asset_crs()`.
+* **Aliases, not per-year column lists**: `read_asset_table(aliases = )` reads a wanted column under its
+  alias and returns it under the wanted name; the wanted name wins, two aliases present is an error.
+  `statpop_census_aliases()` is the default of `read_statpop_ha()`, so direct callers read the censuses
+  too; further census variables need an alias of their own (meaning checked against the BFS docs).
+* **No collector pixels is a state, not a failure**: a census item (no `_noloc_` asset, ha asset outside
+  `crs`) gets `noloc_subtracted = noloc_unmatched = 0` and an empty log, with a message. An LV95 item
+  without `_noloc_` file still warns, as before.
+* **`drop_zero = TRUE` empties cells listed with 0** before the collector pixel correction, so an empty
+  cell means uninhabited in every year. STATPOP 2010–2025 lists no such rows (checked on all 16 files),
+  so its results are unchanged; cells emptied *by* the correction stay 0 (14 in the canton bbox 2010).
+
+Live result for the Canton of Zurich bbox: 1990 1'631'001 inhabitants in 54'325 cells, 2000 1'750'811 in
+56'626, on the same grid as 2010. In `airquality` (sandbox, 2026-10-23) 2010 and 2015 reproduced its
+published outputs with the census years added.
 
 ## Scope decisions (deliberate, not technical limits)
 

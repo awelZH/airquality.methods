@@ -12,7 +12,8 @@ read_asset_stars(
   cellsize = 100,
   anchor = c("lowerleft", "center"),
   crs = 2056,
-  cache_dir = geo_admin_cache_dir()
+  cache_dir = geo_admin_cache_dir(),
+  aliases = NULL
 )
 }
 \arguments{
@@ -29,6 +30,9 @@ variable.}
 \item{crs}{Expected coordinate reference system.}
 
 \item{cache_dir}{Cache directory for downloads.}
+
+\item{aliases}{Other names \code{coords} and \code{variables} may carry in a table,
+see \code{\link[=read_asset_table]{read_asset_table()}} (tabular formats with \code{variables} given only).}
 }
 \value{
 A \code{stars} object, normalised so that grids are directly comparable.
@@ -38,5 +42,7 @@ GeoTIFFs are read directly; tabular assets (parquet, csv hectare grids) are
 downloaded, cached and rasterised via \code{\link[=table_to_stars]{table_to_stars()}}. A GeoTIFF whose crs
 carries no EPSG code is read in \code{crs} (with a message) if the STAC metadata
 declare that crs and its projection parameters are the same; otherwise a crs
-other than \code{crs} stops.
+other than \code{crs} stops. One exception: a table in LV03 (EPSG 21781, the
+census years of STATPOP) is moved onto the LV95 hectare grid with
+\code{\link[=shift_lv03_to_lv95]{shift_lv03_to_lv95()}} when \code{crs} is LV95.
 }

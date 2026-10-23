@@ -9,7 +9,8 @@ resolve_assets(
   pattern = NULL,
   formats = c("tif", "parquet", "csv"),
   epsg = 2056,
-  years = NULL
+  years = NULL,
+  epsg_fallback = NULL
 )
 }
 \arguments{
@@ -22,6 +23,10 @@ resolve_assets(
 \item{epsg}{Expected EPSG code, or \code{NULL} to skip the crs stage.}
 
 \item{years}{Wanted years (\code{NULL} = all available).}
+
+\item{epsg_fallback}{EPSG code accepted for items that have no asset in
+\code{epsg} (the census years of STATPOP exist in LV03 only), or \code{NULL}. The
+reader has to bring such assets into \code{epsg} itself.}
 }
 \value{
 A tibble with one row per item, sorted by year.
@@ -30,7 +35,8 @@ A tibble with one row per item, sorted by year.
 Applied in order:
 \enumerate{
 \item content: \code{pattern} as a regular expression on the asset name (\code{"_ha_"})
-\item crs: \code{proj:epsg == epsg} (assets without the field are kept)
+\item crs: \code{proj:epsg == epsg} (assets without the field are kept); an item
+without any asset in \code{epsg} may keep its assets in \code{epsg_fallback}
 \item format: the first available format from \code{formats}, per item
 \item uniqueness: prefer names carrying the EPSG code, otherwise abort with the
 list of candidates

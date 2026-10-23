@@ -208,6 +208,46 @@ table_to_stars <- function(data,
 }
 
 
+#' Shift LV03 hectare coordinates onto the LV95 hectare grid
+#'
+#' BFS defines the LV95 hectare grid as the LV03 grid moved by the false origins
+#' of LV95 (2'000'000 m east, 1'000'000 m north): a cell keeps its `RELI`, and
+#' in the STATPOP tables `E_KOORD`/`N_KOORD` equal the LV03 corner plus these
+#' offsets. A rigorous transformation (FINELTRA) would move the corners by up to
+#' a few metres and off the 100 m grid. Only valid for coordinates on a grid of
+#' whole metres such as the hectare tables, not for reprojecting rasters.
+#'
+#' @param data Table with LV03 coordinates.
+#' @param coords Coordinate columns (easting, northing).
+#'
+#' @return `data` with the coordinates in LV95.
+#'
+#' @examples
+#' census <- data.frame(KX = 486200, KY = 111300, P00BTOT = 5)
+#' shift_lv03_to_lv95(census, coords = c("KX", "KY"))
+#'
+#' @export
+shift_lv03_to_lv95 <- function(data, coords = c("E_KOORD", "N_KOORD")) {
+  check_names(names(data), coords, "data")
+  x <- data[[coords[[1]]]]
+  y <- data[[coords[[2]]]]
+
+  off_metre <- x %% 1 != 0 | y %% 1 != 0
+  if (any(off_metre, na.rm = TRUE)) {
+    cli::cli_abort(c(
+      "x" = "{sum(off_metre, na.rm = TRUE)} coordinate{?s} {?is/are} not on whole metres.",
+      "i" = "The shift holds for the hectare grid only; reproject other data with {.fn sf::st_transform}."
+    ))
+  }
+  if (any(x >= 2e6 | y >= 1e6, na.rm = TRUE)) {
+    cli::cli_abort("{.arg data} holds coordinates in LV95 already (easting >= 2'000'000 or northing >= 1'000'000).")
+  }
+
+  data[[coords[[1]]]] <- x + 2e6
+  data[[coords[[2]]]] <- y + 1e6
+  data
+}
+
 # ---- Asset to stars -------------------------------------------------------
 
 #' Stop GDAL probing for sidecar files over the network
@@ -347,7 +387,9 @@ read_tif_stars <- function(asset, variables, bbox, crs, cache_dir) {
 #' downloaded, cached and rasterised via [table_to_stars()]. A GeoTIFF whose crs
 #' carries no EPSG code is read in `crs` (with a message) if the STAC metadata
 #' declare that crs and its projection parameters are the same; otherwise a crs
-#' other than `crs` stops.
+#' other than `crs` stops. One exception: a table in LV03 (EPSG 21781, the
+#' census years of STATPOP) is moved onto the LV95 hectare grid with
+#' [shift_lv03_to_lv95()] when `crs` is LV95.
 #'
 #' @param asset A single row from [get_geo_admin_assets()].
 #' @param variables Attributes or bands to keep (`NULL` = all). For large extents
@@ -357,6 +399,8 @@ read_tif_stars <- function(asset, variables, bbox, crs, cache_dir) {
 #' @param coords,cellsize,anchor See [table_to_stars()] (tabular formats only).
 #' @param crs Expected coordinate reference system.
 #' @param cache_dir Cache directory for downloads.
+#' @param aliases Other names `coords` and `variables` may carry in a table,
+#'   see [read_asset_table()] (tabular formats with `variables` given only).
 #'
 #' @return A `stars` object, normalised so that grids are directly comparable.
 #'
@@ -368,9 +412,12 @@ read_asset_stars <- function(asset,
                              cellsize = 100,
                              anchor = c("lowerleft", "center"),
                              crs = 2056,
-                             cache_dir = geo_admin_cache_dir()) {
+                             cache_dir = geo_admin_cache_dir(),
+                             aliases = NULL) {
   asset <- check_single_asset(asset)
-  check_asset_crs(asset, crs)
+  lv03_table <- asset$format %in% c("parquet", "csv") &&
+    isTRUE(asset[["proj:epsg"]] == 21781) && sf::st_crs(crs) == sf::st_crs(2056)
+  if (!lv03_table) check_asset_crs(asset, crs)
   bbox <- as_bbox(bbox, crs)
 
   x <- switch(asset$format,
@@ -378,9 +425,13 @@ read_asset_stars <- function(asset,
     parquet = ,
     csv = {
       columns <- if (!is.null(variables)) c(coords, variables)
-      download_geo_admin_asset(asset, cache_dir) |>
-        read_asset_table(asset$format, columns) |>
-        table_to_stars(variables, coords, cellsize, anchor, crs, bbox)
+      data <- download_geo_admin_asset(asset, cache_dir) |>
+        read_asset_table(asset$format, columns, aliases)
+      if (lv03_table) {
+        cli::cli_inform(c("i" = "{.val {asset$asset}} is in LV03: shifted onto the LV95 hectare grid."))
+        data <- shift_lv03_to_lv95(data, coords)
+      }
+      table_to_stars(data, variables, coords, cellsize, anchor, crs, bbox)
     },
     cli::cli_abort(c(
       "x" = "Format {.val {asset$format}} cannot be read as a raster.",
